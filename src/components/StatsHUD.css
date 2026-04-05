@@ -1,0 +1,48 @@
+.stats-hud-container {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    z-index: 1000; /* Over Leaflet kartet */
+    pointer-events: auto;
+}
+
+.chip {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    padding: 8px 18px;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #334155;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}
+
+.chip:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 40px 0 rgba(31, 38, 135, 0.2);
+}
+
+.chip i {
+    color: #4B6CB7; /* Theme blue fra Dash appen */
+    font-size: 1.1rem;
+}
+
+.chip-value {
+    font-weight: 700;
+    color: #0f172a;
+    margin-right: 4px;
+}
+
+.active-db {
+    opacity: 0.85;
+    font-size: 0.8rem;
+}

@@ -1,0 +1,44 @@
+/* index.css */
+:root {
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --bg-color: #f8f9fa;
+  --text-color: #212529;
+  
+  /* Glassmorphism theme */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+  --glass-backdrop: blur(10px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body, html, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-family);
+  overflow: hidden; /* Avoid scrollbars from map */
+}
+
+.map-container {
+  width: 100%;
+  height: 100vh;
+  z-index: 0;
+}
+
+.floating-panel {
+  position: absolute;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-backdrop);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  box-shadow: var(--glass-shadow);
+  padding: 16px;
+  z-index: 1000;
+  pointer-events: auto;
+}

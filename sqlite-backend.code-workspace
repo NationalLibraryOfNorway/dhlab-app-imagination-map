@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "../sqlite-backend"
+		},
+		{
+			"path": "."
+		}
+	],
+	"settings": {}
+}
