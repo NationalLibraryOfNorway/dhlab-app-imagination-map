@@ -24,7 +24,7 @@ export const CorpusBrowseTable: React.FC = () => {
         ]));
         downloadCsv(
             `imagination_korpus_${sortedBooks.length}_boker.csv`,
-            ['URN', 'Forfatter', 'Aar', 'Tittel', 'Kategori', 'Antall steder', 'Antall mentions', 'dhlabid'],
+            ['URN', 'Forfatter', 'År', 'Tittel', 'Kategori', 'Antall steder', 'Antall mentions', 'dhlabid'],
             rows
         );
     };

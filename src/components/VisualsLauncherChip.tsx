@@ -5,12 +5,14 @@ interface VisualsLauncherChipProps {
   onVisualsDefaultClick: () => void;
   onVisualsMapClick: () => void;
   onVisualsHeatmapClick: () => void;
+  onVisualsHeatmapAllClick: () => void;
 }
 
 export const VisualsLauncherChip: React.FC<VisualsLauncherChipProps> = ({
   onVisualsDefaultClick,
   onVisualsMapClick,
-  onVisualsHeatmapClick
+  onVisualsHeatmapClick,
+  onVisualsHeatmapAllClick
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
@@ -49,6 +51,7 @@ export const VisualsLauncherChip: React.FC<VisualsLauncherChipProps> = ({
           <button onClick={() => { onVisualsDefaultClick(); setIsOpen(false); }}>Visuals panel</button>
           <button onClick={() => { onVisualsMapClick(); setIsOpen(false); }}>Kartmodus</button>
           <button onClick={() => { onVisualsHeatmapClick(); setIsOpen(false); }}>Heatmap-modus</button>
+          <button onClick={() => { onVisualsHeatmapAllClick(); setIsOpen(false); }}>Heatmap (alle steder)</button>
         </div>
       )}
     </div>

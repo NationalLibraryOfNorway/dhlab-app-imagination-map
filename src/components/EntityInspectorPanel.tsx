@@ -186,7 +186,7 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
     ]));
     downloadCsv(
       `imagination_forfattere_${filteredAuthorRows.length}.csv`,
-      ['Forfatter', 'Antall boeker', 'Antall steder', 'Antall mentions'],
+      ['Forfatter', 'Antall bøker', 'Antall steder', 'Antall mentions'],
       rows
     );
   };
@@ -202,7 +202,7 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
     ]));
     downloadCsv(
       `imagination_steder_${placeRowsView.length}.csv`,
-      ['Historisk navn', 'Moderne', 'Antall boeker', 'Antall mentions', 'Lat', 'Lon'],
+      ['Historisk navn', 'Moderne', 'Antall bøker', 'Antall mentions', 'Lat', 'Lon'],
       rows
     );
   };
@@ -479,7 +479,7 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
             <div className="entity-list-toolbar">
               <input
                 className="entity-search-input"
-                placeholder="Sok forfatter..."
+                placeholder="Søk forfatter..."
                 value={authorQuery}
                 onChange={(e) => setAuthorQuery(e.target.value)}
               />

@@ -14,8 +14,12 @@ export const VisualsCard: React.FC = () => {
     setActiveWindow,
     mapVisualMode,
     setMapVisualMode,
+    downlightColorMode,
+    setDownlightColorMode,
     downlightPercentile,
-    setDownlightPercentile
+    setDownlightPercentile,
+    lowFreqGreenStrength,
+    setLowFreqGreenStrength
   } = useCorpus();
   const [isExporting, setIsExporting] = useState(false);
 
@@ -23,7 +27,7 @@ export const VisualsCard: React.FC = () => {
     window.setTimeout(resolve, ms);
   });
 
-  const downloadViewport = async (targetMode: 'map' | 'heatmap') => {
+  const downloadViewport = async (targetMode: 'map' | 'heatmap' | 'heatmap-all') => {
     if (isExporting) return;
     setIsExporting(true);
     const previousMode = mapVisualMode;
@@ -61,6 +65,13 @@ export const VisualsCard: React.FC = () => {
       setIsExporting(false);
     }
   };
+
+  const sliderTrackColor = downlightColorMode === 'red'
+      ? '#dc2626'
+      : '#2563eb';
+  const sliderHandleColor = downlightColorMode === 'red'
+      ? '#ef4444'
+      : '#3b82f6';
 
   if (!isVisualsOpen) return null;
 
@@ -101,6 +112,44 @@ export const VisualsCard: React.FC = () => {
             >
               Heatmap
             </button>
+            <button
+              className={`visuals-toggle ${mapVisualMode === 'heatmap-all' ? 'active' : ''}`}
+              onClick={() => setMapVisualMode('heatmap-all')}
+            >
+              Heatmap (alle)
+            </button>
+          </div>
+        </div>
+
+        <div className="visuals-section">
+          <label>Fargeprofil for demping</label>
+          <div className="visuals-toggle-row">
+            <button
+              className={`visuals-toggle ${downlightColorMode === 'red' ? 'active' : ''}`}
+              onClick={() => setDownlightColorMode('red')}
+            >
+              Rød fokus
+            </button>
+            <button
+              className={`visuals-toggle ${downlightColorMode === 'blue' ? 'active' : ''}`}
+              onClick={() => setDownlightColorMode('blue')}
+            >
+              Blå dis
+            </button>
+          </div>
+        </div>
+
+        <div className="visuals-section">
+          <label>Grønn-gradient for lavfrekvente ({lowFreqGreenStrength}%)</label>
+          <div style={{ padding: '0 8px' }}>
+            <Slider
+              min={0}
+              max={100}
+              value={lowFreqGreenStrength}
+              onChange={(val) => setLowFreqGreenStrength(val as number)}
+              trackStyle={[{ backgroundColor: '#16a34a' }]}
+              handleStyle={[{ borderColor: '#22c55e', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }]}
+            />
           </div>
         </div>
 
@@ -112,8 +161,8 @@ export const VisualsCard: React.FC = () => {
               max={99}
               value={downlightPercentile}
               onChange={(val) => setDownlightPercentile(val as number)}
-              trackStyle={[{ backgroundColor: '#dc2626' }]}
-              handleStyle={[{ borderColor: '#ef4444', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }]}
+              trackStyle={[{ backgroundColor: sliderTrackColor }]}
+              handleStyle={[{ borderColor: sliderHandleColor, backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }]}
             />
           </div>
         </div>
@@ -134,6 +183,13 @@ export const VisualsCard: React.FC = () => {
               disabled={isExporting}
             >
               <i className="fas fa-download"></i> Heatmap
+            </button>
+            <button
+              className="visuals-toggle"
+              onClick={() => downloadViewport('heatmap-all')}
+              disabled={isExporting}
+            >
+              <i className="fas fa-download"></i> Heatmap (alle)
             </button>
           </div>
         </div>

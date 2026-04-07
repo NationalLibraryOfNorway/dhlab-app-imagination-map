@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import { useCorpus } from '../context/CorpusContext';
+import { mixHex } from '../utils/colors';
 
 interface MapMarkersProps {
     onSelectPlace: (token: string) => void;
@@ -9,7 +10,7 @@ interface MapMarkersProps {
 const MAP_MARKER_LIMIT = 1800;
 
 export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace }) => {
-    const { places, isPlacesLoading, downlightPercentile } = useCorpus();
+    const { places, isPlacesLoading, downlightPercentile, downlightColorMode, lowFreqGreenStrength } = useCorpus();
     const map = useMap();
 
     // Beregn størrelsene iterativt med np.log1p math ekvivalent for React
@@ -42,6 +43,17 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace }) => {
             }
             
             const isDownlighted = place.frequency <= thresholdFreq;
+            const baseStroke = downlightColorMode === 'red' ? '#dc2626' : '#1d4ed8';
+            const baseFill = downlightColorMode === 'red' ? '#ef4444' : '#3b82f6';
+            const greenBase = '#22c55e';
+            const greenStrength = lowFreqGreenStrength / 100;
+            const lowFreqBias = logMax > logMin
+                ? 1 - ((Math.log1p(place.frequency) - logMin) / (logMax - logMin))
+                : 1;
+            const greenMix = greenStrength * Math.max(0, Math.min(1, lowFreqBias));
+            const activeStroke = mixHex(baseStroke, '#15803d', greenMix * 0.9);
+            const activeFill = mixHex(baseFill, greenBase, greenMix);
+            const dimFill = mixHex(downlightColorMode === 'red' ? '#fca5a5' : '#93c5fd', '#86efac', greenMix);
 
             return (
                 <CircleMarker
@@ -49,9 +61,9 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace }) => {
                     center={[place.lat, place.lon]}
                     radius={radius}
                     pathOptions={{ 
-                        color: isDownlighted ? 'transparent' : '#dc2626', // Theme red ( Tailwind red-600)
-                        fillColor: '#ef4444', 
-                        fillOpacity: isDownlighted ? 0.05 : 0.6,
+                        color: isDownlighted ? 'transparent' : activeStroke,
+                        fillColor: isDownlighted ? dimFill : activeFill,
+                        fillOpacity: isDownlighted ? 0.12 : (downlightColorMode === 'red' ? 0.62 : 0.54),
                         weight: isDownlighted ? 0 : 1.5
                     }}
                     eventHandlers={{
@@ -71,7 +83,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace }) => {
                 </CircleMarker>
             );
         });
-    }, [places, onSelectPlace, map, downlightPercentile]);
+    }, [places, onSelectPlace, map, downlightPercentile, downlightColorMode, lowFreqGreenStrength]);
 
     if (isPlacesLoading) {
         // En elegant måte å vise kart-loading på kan implementeres

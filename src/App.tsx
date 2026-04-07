@@ -40,8 +40,8 @@ function App() {
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {mapVisualMode === 'heatmap' ? (
-          <HeatmapLayer />
+        {mapVisualMode === 'heatmap' || mapVisualMode === 'heatmap-all' ? (
+          <HeatmapLayer useFullDataset={mapVisualMode === 'heatmap-all'} />
         ) : (
           <MapMarkers
             onSelectPlace={(token) => {
@@ -76,6 +76,11 @@ function App() {
         }}
         onVisualsHeatmapClick={() => {
           setMapVisualMode('heatmap');
+          setIsVisualsOpen(true);
+          setActiveWindow('visuals');
+        }}
+        onVisualsHeatmapAllClick={() => {
+          setMapVisualMode('heatmap-all');
           setIsVisualsOpen(true);
           setActiveWindow('visuals');
         }}

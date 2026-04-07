@@ -44,10 +44,14 @@ interface CorpusContextType {
   places: PlacePoint[];
   totalPlaces: number;
   isPlacesLoading: boolean;
-  mapVisualMode: 'map' | 'heatmap';
-  setMapVisualMode: (mode: 'map' | 'heatmap') => void;
+  mapVisualMode: 'map' | 'heatmap' | 'heatmap-all';
+  setMapVisualMode: (mode: 'map' | 'heatmap' | 'heatmap-all') => void;
+  downlightColorMode: 'red' | 'blue';
+  setDownlightColorMode: (mode: 'red' | 'blue') => void;
   downlightPercentile: number;
   setDownlightPercentile: (val: number) => void;
+  lowFreqGreenStrength: number;
+  setLowFreqGreenStrength: (val: number) => void;
 }
 
 const CorpusContext = createContext<CorpusContextType | undefined>(undefined);
@@ -65,8 +69,10 @@ export const CorpusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [places, setPlaces] = useState<PlacePoint[]>([]);
   const [totalPlaces, setTotalPlaces] = useState<number>(0);
   const [isPlacesLoading, setIsPlacesLoading] = useState(false);
-  const [mapVisualMode, setMapVisualMode] = useState<'map' | 'heatmap'>('map');
+  const [mapVisualMode, setMapVisualMode] = useState<'map' | 'heatmap' | 'heatmap-all'>('map');
+  const [downlightColorMode, setDownlightColorMode] = useState<'red' | 'blue'>('blue');
   const [downlightPercentile, setDownlightPercentile] = useState<number>(0);
+  const [lowFreqGreenStrength, setLowFreqGreenStrength] = useState<number>(0);
 
   const API_URL = import.meta.env.VITE_API_URL || 'https://api.nb.no/dhlab/imag';
   const LEGACY_API_URL = import.meta.env.VITE_LEGACY_API_URL || 'https://api.nb.no/dhlab';
@@ -140,8 +146,12 @@ export const CorpusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       isPlacesLoading,
       mapVisualMode,
       setMapVisualMode,
+      downlightColorMode,
+      setDownlightColorMode,
       downlightPercentile,
-      setDownlightPercentile
+      setDownlightPercentile,
+      lowFreqGreenStrength,
+      setLowFreqGreenStrength
     }}>
       {children}
     </CorpusContext.Provider>
