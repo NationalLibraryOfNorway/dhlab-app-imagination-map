@@ -14,12 +14,6 @@ interface EntityInspectorPanelProps {
   onSelectPlace: (token: string) => void;
 }
 
-interface ListItem {
-  key: string;
-  label: string;
-  sublabel: string;
-}
-
 interface AuthorStat {
   key: string;
   label: string;
@@ -28,6 +22,7 @@ interface AuthorStat {
   mentions: number;
 }
 
+type AuthorSortKey = 'label' | 'books' | 'places' | 'mentions';
 type PlaceSortKey = 'token' | 'name' | 'doc_count' | 'frequency';
 
 function splitAuthors(raw: string): string[] {
@@ -43,6 +38,11 @@ function hashToken(value: string): number {
     hash = ((hash << 5) + hash) + value.charCodeAt(i);
   }
   return hash >>> 0;
+}
+
+function toCount(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
@@ -71,6 +71,10 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
   const [authorImageQuery, setAuthorImageQuery] = useState('');
   const [authorImageSearchTerm, setAuthorImageSearchTerm] = useState('');
   const [authorQuery, setAuthorQuery] = useState('');
+  const [authorSortKey, setAuthorSortKey] = useState<AuthorSortKey>('books');
+  const [authorSortDir, setAuthorSortDir] = useState<'asc' | 'desc'>('desc');
+  const [authorRowsPerPage, setAuthorRowsPerPage] = useState(100);
+  const [authorPage, setAuthorPage] = useState(1);
   const [placeQuery, setPlaceQuery] = useState('');
   const [placeSortKey, setPlaceSortKey] = useState<PlaceSortKey>('frequency');
   const [placeSortDir, setPlaceSortDir] = useState<'asc' | 'desc'>('desc');
@@ -138,54 +142,53 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
           mentions: 0
         };
         existing.books += 1;
-        existing.places += book.unique_places || 0;
-        existing.mentions += book.total_mentions || 0;
+        existing.places += toCount(book.unique_places);
+        existing.mentions += toCount(book.total_mentions);
         stats.set(author, existing);
       }
     }
-    return Array.from(stats.values()).sort((a, b) => {
-      if (b.books !== a.books) return b.books - a.books;
-      return b.mentions - a.mentions;
-    });
+    return Array.from(stats.values());
   }, [activeBooksMetadata]);
 
-  const filteredAuthorRows = useMemo(() => {
+  const authorStatsAvailability = useMemo(() => {
+    const withPlaces = activeBooksMetadata.some((book) => toCount(book.unique_places) > 0);
+    const withMentions = activeBooksMetadata.some((book) => toCount(book.total_mentions) > 0);
+    return { withPlaces, withMentions };
+  }, [activeBooksMetadata]);
+
+  const authorRowsSorted = useMemo(() => {
     const query = authorQuery.trim().toLowerCase();
-    if (!query) return authorRows;
-    return authorRows.filter((row) => row.label.toLowerCase().includes(query));
-  }, [authorRows, authorQuery]);
+    let rows = query ? authorRows.filter((row) => row.label.toLowerCase().includes(query)) : [...authorRows];
+    rows.sort((a, b) => {
+      let cmp = 0;
+      if (authorSortKey === 'label') cmp = a.label.localeCompare(b.label, 'no');
+      if (authorSortKey === 'books') cmp = a.books - b.books;
+      if (authorSortKey === 'places') cmp = a.places - b.places;
+      if (authorSortKey === 'mentions') cmp = a.mentions - b.mentions;
+      return authorSortDir === 'asc' ? cmp : -cmp;
+    });
+    return rows;
+  }, [authorRows, authorQuery, authorSortKey, authorSortDir]);
 
-  const items = useMemo<ListItem[]>(() => {
-    if (mode === 'authors') {
-      return filteredAuthorRows.map((row) => ({
-        key: row.key,
-        label: row.label,
-        sublabel: `${row.books.toLocaleString()} bøker • ${row.places.toLocaleString()} steder • ${row.mentions.toLocaleString()} mentions`
-      }));
-    }
-
-    if (mode === 'places') {
-      return [...placesData]
-        .sort((a, b) => b.frequency - a.frequency)
-        .map((place) => ({
-          key: place.token,
-          label: place.token,
-          sublabel: `${place.frequency.toLocaleString()} treff i ${place.doc_count.toLocaleString()} bøker`
-        }));
-    }
-
-    return [];
-  }, [mode, filteredAuthorRows, placesData]);
+  const authorTotalPages = Math.max(1, Math.ceil(authorRowsSorted.length / authorRowsPerPage));
+  const authorPageRows = useMemo(() => {
+    const start = (authorPage - 1) * authorRowsPerPage;
+    return authorRowsSorted.slice(start, start + authorRowsPerPage);
+  }, [authorRowsSorted, authorPage, authorRowsPerPage]);
+  const authorPageStart = authorRowsSorted.length === 0 ? 0 : (authorPage - 1) * authorRowsPerPage + 1;
+  const authorPageEnd = authorRowsSorted.length === 0
+    ? 0
+    : Math.min(authorRowsSorted.length, authorPage * authorRowsPerPage);
 
   const handleDownloadAuthors = () => {
-    const rows = filteredAuthorRows.map((row) => ([
+    const rows = authorRowsSorted.map((row) => ([
       row.label,
       row.books,
-      row.places,
-      row.mentions
+      authorStatsAvailability.withPlaces ? row.places : '',
+      authorStatsAvailability.withMentions ? row.mentions : ''
     ]));
     downloadCsv(
-      `imagination_forfattere_${filteredAuthorRows.length}.csv`,
+      `imagination_forfattere_${authorRowsSorted.length}.csv`,
       ['Forfatter', 'Antall bøker', 'Antall steder', 'Antall mentions'],
       rows
     );
@@ -254,6 +257,14 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
     : Math.min(placeRowsView.length, placePage * rowsPerPage);
 
   useEffect(() => {
+    setAuthorPage(1);
+  }, [authorQuery, authorSortKey, authorSortDir, authorRowsPerPage]);
+
+  useEffect(() => {
+    if (authorPage > authorTotalPages) setAuthorPage(authorTotalPages);
+  }, [authorPage, authorTotalPages]);
+
+  useEffect(() => {
     setPlacePage(1);
   }, [placeQuery, sampleEnabled, sampleSize, rowsPerPage]);
 
@@ -262,13 +273,22 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
   }, [placePage, placeTotalPages]);
 
   useEffect(() => {
-    if (!mode) return;
-    if (items.length === 0) {
-      setSelectedKey('');
+    if (mode === 'authors') {
+      if (authorRowsSorted.length === 0) {
+        setSelectedKey('');
+        return;
+      }
+      setSelectedKey((current) => (authorRowsSorted.some((row) => row.key === current) ? current : authorRowsSorted[0].key));
       return;
     }
-    setSelectedKey((current) => (items.some((item) => item.key === current) ? current : items[0].key));
-  }, [mode, items]);
+    if (mode === 'places') {
+      if (placeRows.length === 0) {
+        setSelectedKey('');
+        return;
+      }
+      setSelectedKey((current) => (placeRows.some((row) => row.token === current) ? current : placeRows[0].token));
+    }
+  }, [mode, authorRowsSorted, placeRows]);
 
   useEffect(() => {
     if (mode !== 'authors') return;
@@ -315,7 +335,6 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
   if (!mode) return null;
 
   const title = mode === 'authors' ? 'Forfattere' : 'Steder';
-  const hasRows = items.length > 0;
 
   return (
     <Rnd
@@ -348,7 +367,101 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
         </button>
       </div>
 
-      {mode === 'places' && activeTab === 'list' ? (
+      {mode === 'authors' && activeTab === 'list' ? (
+        <div className="entity-places-layout">
+          <div className="entity-places-toolbar">
+            <input
+              className="entity-search-input"
+              placeholder="Søk forfatter..."
+              value={authorQuery}
+              onChange={(e) => setAuthorQuery(e.target.value)}
+            />
+            <select
+              className="entity-select"
+              value={authorRowsPerPage}
+              onChange={(e) => setAuthorRowsPerPage(Number(e.target.value))}
+            >
+              <option value={50}>50 / side</option>
+              <option value={100}>100 / side</option>
+              <option value={200}>200 / side</option>
+            </select>
+            <button type="button" className="entity-action" onClick={handleDownloadAuthors}>
+              <i className="fas fa-download"></i> Last ned
+            </button>
+          </div>
+
+          <div className="entity-places-meta">
+            Viser {authorPageStart.toLocaleString()}-{authorPageEnd.toLocaleString()} av {authorRowsSorted.length.toLocaleString()} forfattere
+            {(!authorStatsAvailability.withPlaces || !authorStatsAvailability.withMentions) && (
+              <span>
+                {' '}(
+                {!authorStatsAvailability.withPlaces ? 'antall steder mangler i metadata' : ''}
+                {!authorStatsAvailability.withPlaces && !authorStatsAvailability.withMentions ? ', ' : ''}
+                {!authorStatsAvailability.withMentions ? 'antall mentions mangler i metadata' : ''}
+                )
+              </span>
+            )}
+          </div>
+
+          <div className="entity-places-table-wrap">
+            <table className="entity-places-table">
+              <thead>
+                <tr>
+                  <th onClick={() => {
+                    if (authorSortKey === 'label') setAuthorSortDir(authorSortDir === 'asc' ? 'desc' : 'asc');
+                    else { setAuthorSortKey('label'); setAuthorSortDir('asc'); }
+                  }}>
+                    Forfatter {authorSortKey === 'label' ? (authorSortDir === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th onClick={() => {
+                    if (authorSortKey === 'books') setAuthorSortDir(authorSortDir === 'asc' ? 'desc' : 'asc');
+                    else { setAuthorSortKey('books'); setAuthorSortDir('desc'); }
+                  }}>
+                    Antall bøker {authorSortKey === 'books' ? (authorSortDir === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th onClick={() => {
+                    if (authorSortKey === 'places') setAuthorSortDir(authorSortDir === 'asc' ? 'desc' : 'asc');
+                    else { setAuthorSortKey('places'); setAuthorSortDir('desc'); }
+                  }}>
+                    Antall steder {authorSortKey === 'places' ? (authorSortDir === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                  <th onClick={() => {
+                    if (authorSortKey === 'mentions') setAuthorSortDir(authorSortDir === 'asc' ? 'desc' : 'asc');
+                    else { setAuthorSortKey('mentions'); setAuthorSortDir('desc'); }
+                  }}>
+                    Antall mentions {authorSortKey === 'mentions' ? (authorSortDir === 'asc' ? '↑' : '↓') : ''}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {authorPageRows.map((row) => (
+                  <tr key={row.key} className={selectedKey === row.key ? 'active' : ''} onClick={() => setSelectedKey(row.key)}>
+                    <td>{row.label}</td>
+                    <td>{row.books.toLocaleString()}</td>
+                    <td>{authorStatsAvailability.withPlaces ? row.places.toLocaleString() : '—'}</td>
+                    <td>{authorStatsAvailability.withMentions ? row.mentions.toLocaleString() : '—'}</td>
+                  </tr>
+                ))}
+                {authorPageRows.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="entity-empty">Ingen forfattere i dette utvalget.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="entity-pagination">
+            <button type="button" onClick={() => setAuthorPage((p) => Math.max(1, p - 1))} disabled={authorPage <= 1}>
+              Forrige
+            </button>
+            <span>Side {authorPage} / {authorTotalPages}</span>
+            <button type="button" onClick={() => setAuthorPage((p) => Math.min(authorTotalPages, p + 1))} disabled={authorPage >= authorTotalPages}>
+              Neste
+            </button>
+          </div>
+        </div>
+      ) : mode === 'places' && activeTab === 'list' ? (
         <div className="entity-places-layout">
           <div className="entity-places-toolbar">
             <input
@@ -475,32 +588,25 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
       ) : (
       <div className={`entity-panel-body ${activeTab === 'list' ? 'list-only' : ''}`}>
         <div className="entity-list">
-          {mode === 'authors' && activeTab === 'list' && (
-            <div className="entity-list-toolbar">
-              <input
-                className="entity-search-input"
-                placeholder="Søk forfatter..."
-                value={authorQuery}
-                onChange={(e) => setAuthorQuery(e.target.value)}
-              />
-              <button type="button" className="entity-action" onClick={handleDownloadAuthors}>
-                <i className="fas fa-download"></i> Last ned
-              </button>
-            </div>
-          )}
-          {!hasRows ? (
+          {mode === 'authors' && authorRowsSorted.length === 0 ? (
+            <div className="entity-empty">Ingen forfattere i aktivt korpus</div>
+          ) : mode === 'places' && placeRows.length === 0 ? (
             <div className="entity-empty">
-              {mode === 'places' && isPlacesLoading ? 'Laster steder...' : `Ingen ${title.toLowerCase()} i aktivt korpus`}
+              {isPlacesLoading ? 'Laster steder...' : `Ingen ${title.toLowerCase()} i aktivt korpus`}
             </div>
           ) : (
-            items.slice(0, 200).map((item) => (
+            (mode === 'authors' ? authorRowsSorted : placeRows.slice(0, 200).map((row) => ({
+              key: row.token,
+              label: row.token,
+              sublabel: `${row.frequency.toLocaleString()} treff i ${row.doc_count.toLocaleString()} bøker`
+            }))).slice(0, 200).map((item) => (
               <button
                 key={item.key}
                 className={`entity-row ${selectedKey === item.key ? 'active' : ''}`}
                 onClick={() => setSelectedKey(item.key)}
               >
                 <div className="entity-row-label">{item.label}</div>
-                <div className="entity-row-sub">{item.sublabel}</div>
+                {'sublabel' in item && <div className="entity-row-sub">{item.sublabel}</div>}
               </button>
             ))
           )}

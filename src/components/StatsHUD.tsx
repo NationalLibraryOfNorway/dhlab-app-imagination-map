@@ -12,6 +12,7 @@ interface StatsHUDProps {
     onPlacesDefaultClick: () => void;
     onPlacesListClick: () => void;
     onPlacesImagesClick: () => void;
+    onYearClick: () => void;
 }
 
 export const StatsHUD: React.FC<StatsHUDProps> = ({
@@ -23,9 +24,15 @@ export const StatsHUD: React.FC<StatsHUDProps> = ({
     onAuthorsImagesClick,
     onPlacesDefaultClick,
     onPlacesListClick,
-    onPlacesImagesClick
+    onPlacesImagesClick,
+    onYearClick
 }) => {
-    const { activeBooksMetadata, isLoading, places, totalPlaces } = useCorpus();
+    const {
+        activeBooksMetadata,
+        isLoading,
+        places,
+        totalPlaces
+    } = useCorpus();
     const [openMenu, setOpenMenu] = useState<'books' | 'authors' | 'places' | null>(null);
     const closeTimer = useRef<number | null>(null);
 
@@ -148,12 +155,12 @@ export const StatsHUD: React.FC<StatsHUDProps> = ({
                     )}
                 </div>
             </div>
-            <div className="chip">
+            <button className="chip chip-button" onClick={onYearClick} title="Åpne tidsfilter">
                 <i className="fas fa-calendar-alt"></i>
                 <span className="chip-text">
                     {stats.yearString}
                 </span>
-            </div>
+            </button>
         </div>
     );
 };

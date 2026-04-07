@@ -1,0 +1,96 @@
+.temporal-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+  overflow: hidden;
+}
+
+.temporal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.temporal-title {
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.temporal-controls button {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.temporal-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.temporal-section label {
+  display: block;
+  font-size: 0.82rem;
+  color: #334155;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.temporal-toggle {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.65);
+  color: #334155;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+}
+
+.temporal-toggle.active {
+  border-color: rgba(75, 108, 183, 0.5);
+  background: rgba(75, 108, 183, 0.14);
+  color: #1d4ed8;
+}
+
+.temporal-range {
+  display: flex;
+  justify-content: space-between;
+  color: #64748b;
+  font-size: 0.74rem;
+  margin-top: 6px;
+}
+
+.temporal-mode-row {
+  display: flex;
+  gap: 8px;
+}
+
+.temporal-mode-row button {
+  flex: 1;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(255, 255, 255, 0.65);
+  color: #334155;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.temporal-mode-row button.active {
+  border-color: rgba(75, 108, 183, 0.5);
+  background: rgba(75, 108, 183, 0.14);
+  color: #1d4ed8;
+}

@@ -40,8 +40,8 @@ interface CorpusContextType {
   setIsVisualsOpen: (val: boolean) => void;
   isSettingsOpen: boolean;
   setIsSettingsOpen: (val: boolean) => void;
-  activeWindow: 'builder' | 'browse' | 'visuals' | 'settings' | 'entityAuthors' | 'entityPlaces' | 'summary' | null;
-  setActiveWindow: (window: 'builder' | 'browse' | 'visuals' | 'settings' | 'entityAuthors' | 'entityPlaces' | 'summary' | null) => void;
+  activeWindow: 'builder' | 'browse' | 'visuals' | 'settings' | 'temporal' | 'entityAuthors' | 'entityPlaces' | 'summary' | null;
+  setActiveWindow: (window: 'builder' | 'browse' | 'visuals' | 'settings' | 'temporal' | 'entityAuthors' | 'entityPlaces' | 'summary' | null) => void;
   // Map properties
   places: PlacePoint[];
   totalPlaces: number;
@@ -56,6 +56,12 @@ interface CorpusContextType {
   setLowFreqGreenStrength: (val: number) => void;
   maxPlacesInView: number;
   setMaxPlacesInView: (val: number) => void;
+  temporalEnabled: boolean;
+  setTemporalEnabled: (val: boolean) => void;
+  temporalCutoffYear: number | null;
+  setTemporalCutoffYear: (year: number | null) => void;
+  temporalMode: 'color' | 'toggle';
+  setTemporalMode: (mode: 'color' | 'toggle') => void;
 }
 
 const CorpusContext = createContext<CorpusContextType | undefined>(undefined);
@@ -69,7 +75,7 @@ export const CorpusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isCorpusBuilderOpen, setIsCorpusBuilderOpen] = useState(false);
   const [isVisualsOpen, setIsVisualsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [activeWindow, setActiveWindow] = useState<'builder' | 'browse' | 'visuals' | 'settings' | 'entityAuthors' | 'entityPlaces' | 'summary' | null>(null);
+  const [activeWindow, setActiveWindow] = useState<'builder' | 'browse' | 'visuals' | 'settings' | 'temporal' | 'entityAuthors' | 'entityPlaces' | 'summary' | null>(null);
   
   const [places, setPlaces] = useState<PlacePoint[]>([]);
   const [totalPlaces, setTotalPlaces] = useState<number>(0);
@@ -79,6 +85,9 @@ export const CorpusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [downlightPercentile, setDownlightPercentile] = useState<number>(0);
   const [lowFreqGreenStrength, setLowFreqGreenStrength] = useState<number>(0);
   const [maxPlacesInView, setMaxPlacesInView] = useState<number>(5000);
+  const [temporalEnabled, setTemporalEnabled] = useState<boolean>(false);
+  const [temporalCutoffYear, setTemporalCutoffYear] = useState<number | null>(null);
+  const [temporalMode, setTemporalMode] = useState<'color' | 'toggle'>('color');
 
   const API_URL = import.meta.env.VITE_API_URL || 'https://api.nb.no/dhlab/imag';
   const LEGACY_API_URL = import.meta.env.VITE_LEGACY_API_URL || 'https://api.nb.no/dhlab';
@@ -161,7 +170,13 @@ export const CorpusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       lowFreqGreenStrength,
       setLowFreqGreenStrength,
       maxPlacesInView,
-      setMaxPlacesInView
+      setMaxPlacesInView,
+      temporalEnabled,
+      setTemporalEnabled,
+      temporalCutoffYear,
+      setTemporalCutoffYear,
+      temporalMode,
+      setTemporalMode
     }}>
       {children}
     </CorpusContext.Provider>

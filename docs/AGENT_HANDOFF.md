@@ -2,6 +2,14 @@
 
 Bruk denne malen når du overleverer arbeid mellom backend/frontend (eller mellom to kodemodeller).
 
+## Aktuell handoff-notat (2026-04-06)
+
+- Frontend forventer nå at `GET /api/metadata/all` returnerer feltene `unique_places` og `total_mentions` per bok.
+- I dagens API-respons er disse feltene `null` for alle bøker, som gir `0` i forfatteraggregater.
+- Når backend fyller disse feltene med tallverdier, oppdateres frontend automatisk uten nye kall eller kodeendringer.
+- Berørte visninger: `Forfattere`-tabell (aggregert), `Aktivt Korpus`-tabell, CSV-eksport for forfatter/korpus.
+- Midlertidig viser UI en indikator om manglende metadata i forfatterlisten.
+
 ## 1) Snapshot
 
 - **Dato:** YYYY-MM-DD

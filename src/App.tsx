@@ -12,6 +12,7 @@ import { VisualsCard } from './components/VisualsCard'
 import { VisualsLauncherChip } from './components/VisualsLauncherChip'
 import { SettingsLauncherChip } from './components/SettingsLauncherChip'
 import { SettingsCard } from './components/SettingsCard'
+import { TemporalCard } from './components/TemporalCard'
 import { useCorpus } from './context/CorpusContext'
 import './index.css'
 
@@ -35,6 +36,7 @@ function App() {
   const [authorsInspectorTab, setAuthorsInspectorTab] = useState<'list' | 'images'>('list');
   const [isPlacesInspectorOpen, setIsPlacesInspectorOpen] = useState(false);
   const [placesInspectorTab, setPlacesInspectorTab] = useState<'list' | 'images'>('list');
+  const [isTemporalOpen, setIsTemporalOpen] = useState(false);
 
   return (
     <div className="app-shell">
@@ -188,11 +190,27 @@ function App() {
             setActiveWindow('entityPlaces');
           }
         }}
+        onYearClick={() => {
+          if (isTemporalOpen && activeWindow === 'temporal') {
+            setIsTemporalOpen(false);
+            setActiveWindow(null);
+          } else {
+            setIsTemporalOpen(true);
+            setActiveWindow('temporal');
+          }
+        }}
       />
       <div className="workspace-zone">
         <CorpusBuilderCard />
         <VisualsCard />
         <SettingsCard />
+        <TemporalCard
+          isOpen={isTemporalOpen}
+          onClose={() => {
+            setIsTemporalOpen(false);
+            if (activeWindow === 'temporal') setActiveWindow(null);
+          }}
+        />
         <CorpusBrowseTable />
         {isAuthorsInspectorOpen && (
           <EntityInspectorPanel
