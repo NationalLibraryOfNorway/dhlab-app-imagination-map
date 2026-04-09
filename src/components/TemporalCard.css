@@ -94,3 +94,11 @@
   background: rgba(75, 108, 183, 0.14);
   color: #1d4ed8;
 }
+
+.temporal-computing-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: #64748b;
+}

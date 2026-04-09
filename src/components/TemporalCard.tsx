@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Rnd } from 'react-rnd';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import { useCorpus } from '../context/CorpusContext';
 import { useWindowLayout } from '../utils/windowLayout';
+import { hasFirstYearCacheForCorpus, isFirstYearFetchInFlight } from '../utils/temporal';
 import './TemporalCard.css';
 
 interface TemporalCardProps {
@@ -28,6 +29,7 @@ export const TemporalCard: React.FC<TemporalCardProps> = ({ isOpen, onClose }) =
   const minYear = years.length > 0 ? Math.min(...years) : 1800;
   const maxYear = years.length > 0 ? Math.max(...years) : 2025;
   const effectiveYear = temporalCutoffYear ?? maxYear;
+  const [isTemporalMappingComputing, setIsTemporalMappingComputing] = useState(false);
   const { layout, onDragStop, onResizeStop } = useWindowLayout({
     key: 'temporal',
     defaultLayout: { x: 360, y: 20, width: 360, height: 260 },
@@ -46,6 +48,23 @@ export const TemporalCard: React.FC<TemporalCardProps> = ({ isOpen, onClose }) =
       setTemporalEnabled(true);
     }
   }, [isOpen, temporalEnabled, setTemporalEnabled]);
+
+  useEffect(() => {
+    if (!isOpen || !temporalEnabled) {
+      setIsTemporalMappingComputing(false);
+      return undefined;
+    }
+
+    const updateStatus = () => {
+      const hasCache = hasFirstYearCacheForCorpus(activeBooksMetadata);
+      const inflight = isFirstYearFetchInFlight(activeBooksMetadata);
+      setIsTemporalMappingComputing(!hasCache && inflight);
+    };
+
+    updateStatus();
+    const timer = window.setInterval(updateStatus, 250);
+    return () => window.clearInterval(timer);
+  }, [isOpen, temporalEnabled, activeBooksMetadata]);
 
   if (!isOpen) return null;
 
@@ -103,6 +122,11 @@ export const TemporalCard: React.FC<TemporalCardProps> = ({ isOpen, onClose }) =
             Av/på
           </button>
         </div>
+        {isTemporalMappingComputing && (
+          <div className="temporal-computing-hint">
+            <i className="fas fa-circle-notch fa-spin"></i> Beregner tidsmapping...
+          </div>
+        )}
       </div>
     </Rnd>
   );

@@ -4,6 +4,7 @@ import L from 'leaflet';
 import 'leaflet.heat';
 import { useCorpus } from '../context/CorpusContext';
 import { mixHex } from '../utils/colors';
+import { fetchFirstYearByTokenForCorpus } from '../utils/temporal';
 
 interface HeatmapLayerProps {
   useFullDataset?: boolean;
@@ -15,12 +16,18 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
     places,
     totalPlaces,
     activeDhlabids,
+    activeBooksMetadata,
     API_URL,
+    maxPlacesInView,
     downlightPercentile,
     downlightColorMode,
-    lowFreqGreenStrength
+    lowFreqGreenStrength,
+    temporalEnabled,
+    temporalCutoffYear,
+    temporalMode
   } = useCorpus();
   const [fullPlaces, setFullPlaces] = useState<typeof places | null>(null);
+  const [firstYearByToken, setFirstYearByToken] = useState<Map<string, number> | null>(null);
 
   useEffect(() => {
     if (!useFullDataset) return;
@@ -62,29 +69,84 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
   }, [useFullDataset, activeDhlabids, totalPlaces, places, API_URL]);
 
   const sourcePlaces = useFullDataset ? (fullPlaces || places) : places;
+  useEffect(() => {
+    if (!temporalEnabled) {
+      setFirstYearByToken(null);
+      return;
+    }
+
+    let cancelled = false;
+    const run = async () => {
+      const firstSeen = await fetchFirstYearByTokenForCorpus({
+        apiUrl: API_URL,
+        activeBooksMetadata,
+        maxPlacesInView,
+        totalPlaces
+      });
+      if (!cancelled) setFirstYearByToken(firstSeen);
+    };
+
+    run().catch((err) => {
+      if (cancelled) return;
+      console.error(err);
+      setFirstYearByToken(null);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [temporalEnabled, activeBooksMetadata, API_URL, maxPlacesInView, totalPlaces]);
 
   const points = useMemo<[number, number, number][]>(() => {
     if (sourcePlaces.length === 0) return [];
 
-    const frequencies = sourcePlaces.map((place) => place.frequency);
+    const temporalPlaces = sourcePlaces.filter((place) => {
+      if (!temporalEnabled || temporalCutoffYear === null) return true;
+      const firstYear = firstYearByToken?.get(place.token);
+      const isAfterOnly = typeof firstYear === 'number' && firstYear >= temporalCutoffYear;
+      const isUnknown = typeof firstYear !== 'number';
+      if (temporalMode === 'toggle') {
+        return !(isAfterOnly || isUnknown);
+      }
+      return true;
+    });
+
+    if (temporalPlaces.length === 0) return [];
+    const frequencies = temporalPlaces.map((place) => place.frequency);
     const sortedFreqs = [...frequencies].sort((a, b) => a - b);
-    const thresholdIdx = Math.floor((downlightPercentile / 100) * Math.max(0, sourcePlaces.length - 1));
+    const thresholdIdx = Math.floor((downlightPercentile / 100) * Math.max(0, temporalPlaces.length - 1));
     const thresholdFreq = downlightPercentile > 0 ? sortedFreqs[thresholdIdx] : 0;
     const maxFreq = Math.max(...frequencies);
     const minFreq = Math.min(...frequencies);
     const logMax = Math.log1p(maxFreq);
     const logMin = Math.log1p(minFreq);
 
-    return sourcePlaces
+    return temporalPlaces
       .filter((place) => place.frequency > thresholdFreq)
       .map((place) => {
         const norm = logMax > logMin
           ? (Math.log1p(place.frequency) - logMin) / (logMax - logMin)
           : 0.35;
-        const intensity = 0.2 + norm * 0.8;
+        const firstYear = firstYearByToken?.get(place.token);
+        const isAfterOnly = temporalEnabled
+          && temporalCutoffYear !== null
+          && typeof firstYear === 'number'
+          && firstYear >= temporalCutoffYear;
+        const isUnknown = temporalEnabled
+          && temporalCutoffYear !== null
+          && typeof firstYear !== 'number';
+        const temporalFactor = temporalEnabled && temporalMode === 'color' && (isAfterOnly || isUnknown) ? 0.18 : 1;
+        const intensity = (0.2 + norm * 0.8) * temporalFactor;
         return [place.lat, place.lon, intensity];
       });
-  }, [sourcePlaces, downlightPercentile]);
+  }, [
+    sourcePlaces,
+    downlightPercentile,
+    temporalEnabled,
+    temporalCutoffYear,
+    temporalMode,
+    firstYearByToken
+  ]);
 
   useEffect(() => {
     if (points.length === 0) return;

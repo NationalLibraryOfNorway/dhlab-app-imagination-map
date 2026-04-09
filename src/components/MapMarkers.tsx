@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import { useCorpus } from '../context/CorpusContext';
 import { mixHex } from '../utils/colors';
+import { fetchFirstYearByTokenForCorpus } from '../utils/temporal';
 
 interface MapMarkersProps {
     onSelectPlace: (place: { token: string; placeId?: string }) => void;
@@ -33,39 +34,14 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace }) => {
             return;
         }
 
-        const idsByYear = new Map<number, number[]>();
-        activeBooksMetadata.forEach((book) => {
-            if (book.year === null) return;
-            const year = Number(book.year);
-            if (!Number.isFinite(year)) return;
-            if (!idsByYear.has(year)) idsByYear.set(year, []);
-            idsByYear.get(year)?.push(book.dhlabid);
-        });
-        const sortedYears = Array.from(idsByYear.keys()).sort((a, b) => a - b);
-
-        if (sortedYears.length === 0) {
-            setFirstYearByToken(new Map());
-            return;
-        }
-
         let cancelled = false;
         const run = async () => {
-            const firstSeen = new Map<string, number>();
-            for (const year of sortedYears) {
-                const ids = idsByYear.get(year) || [];
-                if (ids.length === 0) continue;
-                const res = await fetch(`${API_URL}/api/places`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ dhlabids: ids, maxPlaces: Math.max(maxPlacesInView, totalPlaces) })
-                });
-                if (!res.ok) throw new Error('Failed first-year places fetch');
-                const data = await res.json();
-                const rows = (data.places || []) as Array<{ token: string }>;
-                rows.forEach((row) => {
-                    if (!firstSeen.has(row.token)) firstSeen.set(row.token, year);
-                });
-            }
+            const firstSeen = await fetchFirstYearByTokenForCorpus({
+                apiUrl: API_URL,
+                activeBooksMetadata,
+                maxPlacesInView,
+                totalPlaces
+            });
             if (!cancelled) setFirstYearByToken(firstSeen);
         };
 
@@ -114,7 +90,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace }) => {
             const isAfterOnly = temporalEnabled
                 && temporalCutoffYear !== null
                 && typeof firstYear === 'number'
-                && firstYear > temporalCutoffYear;
+                && firstYear >= temporalCutoffYear;
             const isUnknown = temporalEnabled
                 && temporalCutoffYear !== null
                 && typeof firstYear !== 'number';
