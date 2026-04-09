@@ -45,6 +45,14 @@ function buildGeoLookupCandidates(placeId: string | null | undefined): string[] 
     return Array.from(new Set(candidates));
 }
 
+function getKeyType(placeId: string | null | undefined): number | null {
+    if (!placeId) return null;
+    const normalized = placeId.trim().toLowerCase();
+    if (normalized.startsWith('geonames:')) return 1;
+    if (normalized.startsWith('internal:')) return 0;
+    return null;
+}
+
 function extractHits(data: any): ConcordanceHit[] {
     const renderedHits = (data?.rendered || []).map((row: any) => {
         const fragment = typeof row?.frag === 'string' ? row.frag : '';
@@ -147,25 +155,27 @@ export const PlaceSummaryCard: React.FC<PlaceSummaryCardProps> = ({ token, place
         if (!token) return;
         const resolveHits = async (): Promise<ConcordanceHit[]> => {
             const geoLookupCandidates = buildGeoLookupCandidates(effectivePlaceId);
+            const keyType = getKeyType(effectivePlaceId);
             let hits: ConcordanceHit[] = [];
             if (geoLookupCandidates.length > 0) {
                 for (const candidateId of geoLookupCandidates) {
                     try {
+                        const payload: Record<string, unknown> = {
+                            terms: [`#geo:${candidateId}`],
+                            window: 8,
+                            before: 8,
+                            after: 8,
+                            totalLimit: 12,
+                            renderHits: true,
+                            _perf: true,
+                            useFilter: true,
+                            filterIds: [bookId]
+                        };
+                        if (keyType !== null) payload.key_type = keyType;
                         const res = await fetch(`${API_URL}/or_query`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                terms: [`#geo:${candidateId}`],
-                                key_type: 1,
-                                window: 8,
-                                before: 8,
-                                after: 8,
-                                totalLimit: 12,
-                                renderHits: true,
-                                _perf: true,
-                                useFilter: true,
-                                filterIds: [bookId]
-                            })
+                            body: JSON.stringify(payload)
                         });
                         if (!res.ok) continue;
                         const data = await res.json();
