@@ -42,6 +42,12 @@ interface GroupedConcordance {
   capped: boolean;
 }
 
+interface QueryGroupStatus {
+  group: string;
+  status: 'ok' | 'empty' | 'error';
+  rowCount: number;
+}
+
 const MAX_GROUPS = 120;
 const MAX_ROWS_PER_GROUP = 140;
 
@@ -95,6 +101,7 @@ export const GeoConcordanceCard: React.FC<GeoConcordanceCardProps> = ({
   const [rendered, setRendered] = useState<RenderedRow[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [mapDimOthers, setMapDimOthers] = useState(true);
+  const [queryGroupStatuses, setQueryGroupStatuses] = useState<QueryGroupStatus[]>([]);
   const lastQuerySignatureRef = useRef('');
   const lastWindowRef = useRef(8);
   const { layout, onDragStop, onResizeStop } = useWindowLayout({
@@ -232,21 +239,39 @@ export const GeoConcordanceCard: React.FC<GeoConcordanceCardProps> = ({
       setIsLoading(true);
       setError(null);
       try {
-        const perGroup = await Promise.all(
+        const perGroup = await Promise.allSettled(
           termGroups.map((group) => executeTermsQuery(['#geo', ...group], true))
         );
         const mergedRowsMap = new Map<string, GeoRow>();
         const mergedRenderedMap = new Map<string, RenderedRow>();
+        let successCount = 0;
+        const statuses: QueryGroupStatus[] = [];
         perGroup.forEach((part) => {
-          part.rows.forEach((row) => {
+          const idx = statuses.length;
+          const label = termGroups[idx]?.join(' ') || `gruppe ${idx + 1}`;
+          if (part.status !== 'fulfilled') {
+            statuses.push({ group: label, status: 'error', rowCount: 0 });
+            return;
+          }
+          successCount += 1;
+          statuses.push({
+            group: label,
+            status: part.value.rows.length > 0 ? 'ok' : 'empty',
+            rowCount: part.value.rows.length
+          });
+          part.value.rows.forEach((row) => {
             const id = `${row.bookId}:${row.pos}:${row.placeKeyType || ''}:${row.placeKey || ''}`;
             if (!mergedRowsMap.has(id)) mergedRowsMap.set(id, row);
           });
-          part.rendered.forEach((item) => {
+          part.value.rendered.forEach((item) => {
             const id = `${item.bookId}:${item.pos}`;
             if (!mergedRenderedMap.has(id)) mergedRenderedMap.set(id, item);
           });
         });
+        if (successCount === 0) {
+          setError('Klarte ikke å hente geo-konkordans.');
+        }
+        setQueryGroupStatuses(statuses);
         result = {
           rows: Array.from(mergedRowsMap.values()),
           rendered: Array.from(mergedRenderedMap.values())
@@ -254,11 +279,13 @@ export const GeoConcordanceCard: React.FC<GeoConcordanceCardProps> = ({
       } catch (err) {
         console.error(err);
         setError('Klarte ikke å hente geo-konkordans.');
+        setQueryGroupStatuses([]);
         result = { rows: [], rendered: [] };
       } finally {
         setIsLoading(false);
       }
     } else {
+      setQueryGroupStatuses([]);
       result = await runTermsQuery(terms, true);
     }
 
@@ -447,6 +474,19 @@ export const GeoConcordanceCard: React.FC<GeoConcordanceCardProps> = ({
           </div>
 
           {error && <div className="geo-conc-error">{error}</div>}
+          {!error && queryGroupStatuses.length > 0 && (
+            <div className="geo-conc-group-statuses">
+              {queryGroupStatuses.map((item) => (
+                <span
+                  key={item.group}
+                  className={`geo-conc-group-status geo-conc-group-status--${item.status}`}
+                  title={item.status === 'error' ? 'Kall feilet for denne gruppen' : `${item.rowCount} råtreff`}
+                >
+                  {item.group}: {item.status === 'ok' ? `${item.rowCount} treff` : item.status === 'empty' ? 'ingen treff' : 'feil'}
+                </span>
+              ))}
+            </div>
+          )}
           {!error && !isLoading && rows.length === 0 && (
             <div className="geo-conc-empty">Ingen treff ennå. Kjør et søk mot aktivt korpus.</div>
           )}

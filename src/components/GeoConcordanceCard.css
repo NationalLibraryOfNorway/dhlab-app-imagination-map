@@ -126,6 +126,37 @@
   color: #475569;
 }
 
+.geo-conc-group-statuses {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.geo-conc-group-status {
+  font-size: 0.74rem;
+  border-radius: 999px;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+}
+
+.geo-conc-group-status--ok {
+  background: rgba(34, 197, 94, 0.16);
+  border-color: rgba(22, 163, 74, 0.35);
+  color: #166534;
+}
+
+.geo-conc-group-status--empty {
+  background: rgba(148, 163, 184, 0.16);
+  border-color: rgba(100, 116, 139, 0.35);
+  color: #334155;
+}
+
+.geo-conc-group-status--error {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(220, 38, 38, 0.35);
+  color: #991b1b;
+}
+
 .geo-conc-results {
   overflow: auto;
   min-height: 0;
