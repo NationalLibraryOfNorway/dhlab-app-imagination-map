@@ -44,8 +44,14 @@ interface GroupedConcordance {
 
 interface QueryGroupStatus {
   group: string;
-  status: 'ok' | 'empty' | 'error';
+  status: 'ok' | 'empty';
   rowCount: number;
+}
+
+interface NearQueryResult {
+  rows: GeoRow[];
+  rendered: RenderedRow[];
+  count: number;
 }
 
 const MAX_GROUPS = 120;
@@ -71,18 +77,18 @@ function highlightGeoBracket(fragment: string): string {
   });
 }
 
-function parseQueryGroups(input: string): { termGroups: string[][]; flatTerms: string[]; hasExplicitGroups: boolean } {
+function parseQueryGroups(input: string): { groups: string[][]; flatTerms: string[]; hasExplicitGroups: boolean } {
   const raw = input.trim();
-  if (!raw) return { termGroups: [], flatTerms: [], hasExplicitGroups: false };
+  if (!raw) return { groups: [], flatTerms: [], hasExplicitGroups: false };
   const hasExplicitGroups = raw.includes(',');
   const groups = raw
     .split(',')
     .map((chunk) => chunk.trim())
     .filter(Boolean)
     .map((group) => group.split(/\s+/).map((token) => token.trim()).filter(Boolean));
-  const termGroups = groups.filter((g) => g.length > 0);
-  const flatTerms = termGroups.flat();
-  return { termGroups, flatTerms, hasExplicitGroups };
+  const filtered = groups.filter((g) => g.length > 0);
+  const flatTerms = filtered.flat();
+  return { groups: filtered, flatTerms, hasExplicitGroups };
 }
 
 export const GeoConcordanceCard: React.FC<GeoConcordanceCardProps> = ({
@@ -95,13 +101,16 @@ export const GeoConcordanceCard: React.FC<GeoConcordanceCardProps> = ({
   const { activeDhlabids, API_URL, activeWindow, setActiveWindow } = useCorpus();
   const [query, setQuery] = useState('');
   const [proximity, setProximity] = useState(8);
+  const [perBookLimit, setPerBookLimit] = useState(2);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastElapsedMs, setLastElapsedMs] = useState<number | null>(null);
   const [rows, setRows] = useState<GeoRow[]>([]);
   const [rendered, setRendered] = useState<RenderedRow[]>([]);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [mapDimOthers, setMapDimOthers] = useState(true);
   const [queryGroupStatuses, setQueryGroupStatuses] = useState<QueryGroupStatus[]>([]);
+  const [groupSort, setGroupSort] = useState<'count' | 'name'>('count');
   const lastQuerySignatureRef = useRef('');
   const lastWindowRef = useRef(8);
   const { layout, onDragStop, onResizeStop } = useWindowLayout({
@@ -151,10 +160,14 @@ export const GeoConcordanceCard: React.FC<GeoConcordanceCardProps> = ({
       }
     });
 
-    return Array.from(byKey.values())
-      .sort((a, b) => b.totalCount - a.totalCount)
-      .slice(0, MAX_GROUPS);
-  }, [rows, renderedMap]);
+    const list = Array.from(byKey.values());
+    if (groupSort === 'name') {
+      list.sort((a, b) => a.label.localeCompare(b.label, 'nb'));
+    } else {
+      list.sort((a, b) => b.totalCount - a.totalCount);
+    }
+    return list.slice(0, MAX_GROUPS);
+  }, [rows, renderedMap, groupSort]);
 
   const totalGroupCount = useMemo(() => {
     const ids = new Set<string>();
@@ -187,107 +200,89 @@ export const GeoConcordanceCard: React.FC<GeoConcordanceCardProps> = ({
   }, [rows]);
   const highlightTerms = useMemo(() => parseQueryGroups(query).flatTerms, [query]);
 
-  const executeTermsQuery = async (terms: string[], withRendered = true) => {
+  const executeNearQuery = async (termGroups: string[][], mode: 'count' | 'hits' | 'render'): Promise<NearQueryResult> => {
     try {
-      const res = await fetch(`${API_URL}/or_query`, {
+      const res = await fetch(`${API_URL}/near_query`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          terms,
+          termGroups,
           useFilter: true,
           filterIds: activeDhlabids,
+          mode,
+          perBook: perBookLimit,
           totalLimit: 5000,
+          docSamples: 0,
+          schema: 'unigrams',
+          symmetric: true,
+          excludeSelf: false,
           window: proximity,
           before: proximity,
-          after: proximity,
-          renderHits: withRendered
+          after: proximity
         })
       });
-      if (!res.ok) throw new Error('Feil ved kall til /or_query');
+      if (!res.ok) {
+        // Backend uses 404 for valid "no-hit" outcomes.
+        if (res.status === 404) {
+          return { rows: [] as GeoRow[], rendered: [] as RenderedRow[], count: 0 };
+        }
+        throw new Error('Feil ved kall til /near_query');
+      }
       const data = await res.json();
+      const rows = (data.rows || []) as GeoRow[];
+      const rendered = mode === 'render'
+        ? (
+          Array.isArray(data.rendered)
+            ? (data.rendered as RenderedRow[])
+            : rows
+                .filter((row: any) => typeof row?.frag === 'string' && Number.isFinite(Number(row?.bookId)) && Number.isFinite(Number(row?.pos ?? row?.seqStart)))
+                .map((row: any) => ({
+                  bookId: Number(row.bookId),
+                  pos: Number(row.pos ?? row.seqStart),
+                  frag: String(row.frag || '')
+                }))
+        )
+        : [];
+      const count = typeof data?.total === 'number'
+        ? data.total
+        : typeof data?.count === 'number'
+          ? data.count
+          : rows.length;
       return {
-        rows: (data.rows || []) as GeoRow[],
-        rendered: withRendered ? ((data.rendered || []) as RenderedRow[]) : []
+        rows,
+        rendered,
+        count
       };
     } catch (err) {
       throw err;
     }
   };
 
-  const runTermsQuery = async (terms: string[], withRendered = true) => {
+  const runNearQuery = async (termGroups: string[][], mode: 'count' | 'hits' | 'render') => {
     setIsLoading(true);
     setError(null);
     try {
-      return await executeTermsQuery(terms, withRendered);
+      return await executeNearQuery(termGroups, mode);
     } catch (err) {
       console.error(err);
       setError('Klarte ikke å hente geo-konkordans.');
-      return { rows: [] as GeoRow[], rendered: [] as RenderedRow[] };
+      return { rows: [] as GeoRow[], rendered: [] as RenderedRow[], count: 0 };
     } finally {
       setIsLoading(false);
     }
   };
 
   const runQuery = async () => {
-    const { termGroups, flatTerms, hasExplicitGroups } = parseQueryGroups(query);
-    const terms = ['#geo', ...flatTerms];
+    const queryStart = performance.now();
+    const { flatTerms } = parseQueryGroups(query);
+    const queryTerms = Array.from(new Set(flatTerms.map((t) => t.toLowerCase()).filter(Boolean)));
+    const mainTermGroups = queryTerms.length > 0
+      ? [['#geo'], queryTerms]
+      : [['#geo']];
     const currentSignature = `${activeDhlabids.join(',')}::${query.trim().toLowerCase()}`;
     const previousRows = rows;
     const previousRendered = rendered;
-    let result: { rows: GeoRow[]; rendered: RenderedRow[] };
-    if (hasExplicitGroups && termGroups.length > 1) {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const perGroup = await Promise.allSettled(
-          termGroups.map((group) => executeTermsQuery(['#geo', ...group], true))
-        );
-        const mergedRowsMap = new Map<string, GeoRow>();
-        const mergedRenderedMap = new Map<string, RenderedRow>();
-        let successCount = 0;
-        const statuses: QueryGroupStatus[] = [];
-        perGroup.forEach((part) => {
-          const idx = statuses.length;
-          const label = termGroups[idx]?.join(' ') || `gruppe ${idx + 1}`;
-          if (part.status !== 'fulfilled') {
-            statuses.push({ group: label, status: 'error', rowCount: 0 });
-            return;
-          }
-          successCount += 1;
-          statuses.push({
-            group: label,
-            status: part.value.rows.length > 0 ? 'ok' : 'empty',
-            rowCount: part.value.rows.length
-          });
-          part.value.rows.forEach((row) => {
-            const id = `${row.bookId}:${row.pos}:${row.placeKeyType || ''}:${row.placeKey || ''}`;
-            if (!mergedRowsMap.has(id)) mergedRowsMap.set(id, row);
-          });
-          part.value.rendered.forEach((item) => {
-            const id = `${item.bookId}:${item.pos}`;
-            if (!mergedRenderedMap.has(id)) mergedRenderedMap.set(id, item);
-          });
-        });
-        if (successCount === 0) {
-          setError('Klarte ikke å hente geo-konkordans.');
-        }
-        setQueryGroupStatuses(statuses);
-        result = {
-          rows: Array.from(mergedRowsMap.values()),
-          rendered: Array.from(mergedRenderedMap.values())
-        };
-      } catch (err) {
-        console.error(err);
-        setError('Klarte ikke å hente geo-konkordans.');
-        setQueryGroupStatuses([]);
-        result = { rows: [], rendered: [] };
-      } finally {
-        setIsLoading(false);
-      }
-    } else {
-      setQueryGroupStatuses([]);
-      result = await runTermsQuery(terms, true);
-    }
+    const result = await runNearQuery(mainTermGroups, 'render');
 
     let nextRows = result.rows;
     let nextRendered = result.rendered;
@@ -315,9 +310,29 @@ export const GeoConcordanceCard: React.FC<GeoConcordanceCardProps> = ({
 
     setRows(nextRows);
     setRendered(nextRendered);
+    if (queryTerms.length > 0) {
+      const pool = (nextRendered.length > 0
+        ? nextRendered.map((r) => r.frag || '')
+        : nextRows.map((r: any) => String(r?.frag || ''))
+      ).join('\n');
+      const statuses: QueryGroupStatus[] = queryTerms.map((term) => {
+        const re = new RegExp(escapeRegExp(term), 'gi');
+        const matches = pool.match(re);
+        const rowCount = matches ? matches.length : 0;
+        return {
+          group: term,
+          status: rowCount > 0 ? 'ok' : 'empty',
+          rowCount
+        };
+      });
+      setQueryGroupStatuses(statuses);
+    } else {
+      setQueryGroupStatuses([]);
+    }
     setCollapsedGroups({});
     lastQuerySignatureRef.current = currentSignature;
     lastWindowRef.current = proximity;
+    setLastElapsedMs(performance.now() - queryStart);
   };
 
   const downloadExcel = () => {
@@ -426,12 +441,42 @@ export const GeoConcordanceCard: React.FC<GeoConcordanceCardProps> = ({
                 <option value={20}>20</option>
               </select>
             </label>
+            <label className="geo-conc-proximity">
+              <span>Treff/bok</span>
+              <select
+                value={perBookLimit}
+                onChange={(e) => setPerBookLimit(Number(e.target.value) || 2)}
+                disabled={isLoading}
+              >
+                <option value={1}>1</option>
+                <option value={2}>2</option>
+                <option value={3}>3</option>
+                <option value={5}>5</option>
+                <option value={8}>8</option>
+                <option value={10}>10</option>
+                <option value={15}>15</option>
+              </select>
+            </label>
             <button type="button" onClick={runQuery} disabled={isLoading || activeDhlabids.length === 0}>
               {isLoading ? 'Laster...' : 'Søk'}
             </button>
-            <button type="button" onClick={downloadExcel} disabled={isLoading || rows.length === 0}>
+            <button
+              type="button"
+              onClick={downloadExcel}
+              disabled={isLoading || rows.length === 0}
+              title="Excel inkluderer alle treff i nåværende svarsett, ikke bare viste grupper"
+            >
               Last ned Excel
             </button>
+          </div>
+          <div className="geo-conc-sort-row">
+            <label>
+              Sortering
+              <select value={groupSort} onChange={(e) => setGroupSort((e.target.value as 'count' | 'name') || 'count')}>
+                <option value="count">Topp (antall treff)</option>
+                <option value="name">Navn (A-Å)</option>
+              </select>
+            </label>
           </div>
 
           <div className="geo-conc-map-tools">
@@ -480,11 +525,16 @@ export const GeoConcordanceCard: React.FC<GeoConcordanceCardProps> = ({
                 <span
                   key={item.group}
                   className={`geo-conc-group-status geo-conc-group-status--${item.status}`}
-                  title={item.status === 'error' ? 'Kall feilet for denne gruppen' : `${item.rowCount} råtreff`}
+                  title={`${item.rowCount} råtreff`}
                 >
-                  {item.group}: {item.status === 'ok' ? `${item.rowCount} treff` : item.status === 'empty' ? 'ingen treff' : 'feil'}
+                  {item.group}: {item.status === 'ok' ? `${item.rowCount} treff` : 'ingen treff'}
                 </span>
               ))}
+            </div>
+          )}
+          {!isLoading && lastElapsedMs !== null && (
+            <div className="geo-conc-cap-note">
+              Søk tid: {(lastElapsedMs / 1000).toFixed(2)} sek
             </div>
           )}
           {!error && !isLoading && rows.length === 0 && (
@@ -492,11 +542,11 @@ export const GeoConcordanceCard: React.FC<GeoConcordanceCardProps> = ({
           )}
 
           <div className="geo-conc-results">
-            {totalGroupCount > MAX_GROUPS && (
-              <div className="geo-conc-cap-note">
-                Viser topp {MAX_GROUPS.toLocaleString()} steder av {totalGroupCount.toLocaleString()} (sortert på treff).
-              </div>
-            )}
+            <div className="geo-conc-cap-note">
+              {groupSort === 'count'
+                ? `Viser ${grouped.length.toLocaleString()} steder av ${totalGroupCount.toLocaleString()} (sortert på treff${totalGroupCount > MAX_GROUPS ? ', capped' : ''}).`
+                : `Viser ${grouped.length.toLocaleString()} steder av ${totalGroupCount.toLocaleString()} (sortert på navn${totalGroupCount > MAX_GROUPS ? ', capped' : ''}).`}
+            </div>
             {grouped.map((group) => (
               <section key={group.id} className="geo-conc-group">
                 <header className="geo-conc-group-header">

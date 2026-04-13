@@ -126,6 +126,28 @@
   color: #475569;
 }
 
+.geo-conc-sort-row {
+  display: flex;
+  align-items: center;
+}
+
+.geo-conc-sort-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  color: #334155;
+}
+
+.geo-conc-sort-row select {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 0.76rem;
+  color: #0f172a;
+  background: rgba(255, 255, 255, 0.8);
+}
+
 .geo-conc-group-statuses {
   display: flex;
   gap: 6px;
