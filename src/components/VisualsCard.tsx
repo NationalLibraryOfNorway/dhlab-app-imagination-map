@@ -182,12 +182,13 @@ export const VisualsCard: React.FC = () => {
               step={5}
               value={markerSizeScale}
               onChange={(val) => setMarkerSizeScale(val as number)}
+              disabled={compareSegmentsEnabled}
               trackStyle={[{ backgroundColor: '#4B6CB7' }]}
               handleStyle={[{ borderColor: '#4B6CB7', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }]}
             />
           </div>
           <small className="visuals-help">
-            Skalerer radius på markører i kartvisning.
+            Skalerer radius på markører i kartvisning (deaktivert under A/B-sammenligning).
           </small>
         </div>
 

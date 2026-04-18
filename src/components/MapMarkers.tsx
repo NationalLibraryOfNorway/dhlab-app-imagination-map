@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet';
-import L from 'leaflet';
 import { useCorpus } from '../context/CorpusContext';
 import { mixHex } from '../utils/colors';
 import { fetchFirstYearByTokenForCorpus } from '../utils/temporal';
@@ -110,6 +109,7 @@ const filterByShortSteps = (rows: GeoSequenceRow[], maxStepKm: number): GeoSeque
 export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSequence, geoFocus }) => {
     const {
         places,
+        activeDhlabids,
         totalPlaces,
         activeBooksMetadata,
         API_URL,
@@ -130,18 +130,18 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSeque
     const [firstYearByToken, setFirstYearByToken] = useState<Map<string, number> | null>(null);
     const [comparePlaces, setComparePlaces] = useState<ComparePlacePoint[] | null>(null);
     const temporalMappingReady = !temporalEnabled || firstYearByToken !== null;
+    const activeCorpusSet = useMemo(() => new Set(activeDhlabids), [activeDhlabids]);
+    const compareABookIds = useMemo(
+        () => segmentABookIds.filter((id) => activeCorpusSet.has(id)),
+        [segmentABookIds, activeCorpusSet]
+    );
+    const compareBBookIds = useMemo(
+        () => segmentBBookIds.filter((id) => activeCorpusSet.has(id)),
+        [segmentBBookIds, activeCorpusSet]
+    );
     const compareReady = compareSegmentsEnabled
-        && segmentABookIds.length > 0
-        && segmentBBookIds.length > 0;
-
-    useEffect(() => {
-        // Ensure no stale marker layers remain when compare/state toggles.
-        map.eachLayer((layer) => {
-            if (layer instanceof L.CircleMarker) {
-                map.removeLayer(layer);
-            }
-        });
-    }, [map, compareReady, markerSizeScale]);
+        && compareABookIds.length > 0
+        && compareBBookIds.length > 0;
 
     useEffect(() => {
         if (!compareReady) {
@@ -163,8 +163,8 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSeque
 
         const run = async () => {
             const [placesA, placesB] = await Promise.all([
-                fetchPlaces(segmentABookIds),
-                fetchPlaces(segmentBBookIds)
+                fetchPlaces(compareABookIds),
+                fetchPlaces(compareBBookIds)
             ]);
             if (cancelled) return;
             const merged = new Map<string, ComparePlacePoint>();
@@ -210,7 +210,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSeque
         return () => {
             cancelled = true;
         };
-    }, [compareReady, segmentABookIds, segmentBBookIds, API_URL, maxPlacesInView]);
+    }, [compareReady, compareABookIds, compareBBookIds, API_URL, maxPlacesInView]);
 
     useEffect(() => {
         if (!temporalEnabled) {
@@ -262,7 +262,8 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSeque
                     const norm = (Math.log1p(place.frequencyA + place.frequencyB) - logMin) / (logMax - logMin);
                     radius = 6 + norm * 18;
                 }
-                radius = Math.max(2, Math.min(60, radius * (markerSizeScale / 100)));
+                // Keep compare markers stable; markerSizeScale only affects normal map mode.
+                radius = Math.max(2, Math.min(60, radius));
                 const inA = place.frequencyA > 0;
                 const inB = place.frequencyB > 0;
                 const color = inA && inB ? '#7c3aed' : (inA ? '#1d4ed8' : '#dc2626');
@@ -560,10 +561,12 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSeque
         comparePlaces
     ]);
 
+    const markerRenderKey = `${compareReady ? 'compare' : 'normal'}:${markerSizeScale}`;
+
     if (isPlacesLoading || !temporalMappingReady) {
         // En elegant måte å vise kart-loading på kan implementeres
         return null;
     }
 
-    return <>{renderedLayers}</>;
+    return <React.Fragment key={markerRenderKey}>{renderedLayers}</React.Fragment>;
 }
