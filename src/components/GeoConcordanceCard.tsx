@@ -546,6 +546,7 @@ export const GeoConcordanceCard: React.FC<GeoConcordanceCardProps> = ({
                 <option value={12}>12</option>
                 <option value={15}>15</option>
                 <option value={20}>20</option>
+                <option value={30}>30</option>
               </select>
             </label>
             <label className="geo-conc-proximity">

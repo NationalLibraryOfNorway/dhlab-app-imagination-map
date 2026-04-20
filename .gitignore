@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# SQLite runtime sidecars
+*.db-shm
+*.db-wal
