@@ -14,6 +14,8 @@ interface AuthorMatch {
 
 interface ResolvedPlaceMatch {
   id: string;
+  mock_id?: string | number | null;
+  place_id?: string | number | null;
   canonicalName: string;
   matchedForm?: string | null;
   alternateForms?: string[];
@@ -21,6 +23,10 @@ interface ResolvedPlaceMatch {
   lat?: number | null;
   lon?: number | null;
   matchType?: string | null;
+}
+
+function getResolvedPlaceId(place: ResolvedPlaceMatch): string {
+  return String(place.mock_id ?? place.place_id ?? place.id ?? '').trim();
 }
 
 function tokenize(text: string): string[] {
@@ -197,9 +203,10 @@ export const Omnibox: React.FC<OmniboxProps> = ({ onSelectPlace }) => {
               <h4>Steder</h4>
               {isPlacesLoading && <div className="omnibox-empty">Søker i alle steder...</div>}
               {!isPlacesLoading && globalPlaceResults.map((place) => {
-                const placeInActiveCorpus = activePlaceById.get(String(place.id));
+                const resolvedPlaceId = getResolvedPlaceId(place);
+                const placeInActiveCorpus = activePlaceById.get(resolvedPlaceId);
                 return (
-                  <div key={place.id} className="omnibox-row">
+                  <div key={resolvedPlaceId || place.id} className="omnibox-row">
                     <div>
                       <strong>{place.matchedForm || place.canonicalName}</strong>
                       <small>
@@ -214,7 +221,7 @@ export const Omnibox: React.FC<OmniboxProps> = ({ onSelectPlace }) => {
                       onClick={() => {
                         onSelectPlace({
                           token: place.matchedForm || place.canonicalName,
-                          placeId: place.id
+                          placeId: resolvedPlaceId
                         });
                         setIsOpen(false);
                       }}

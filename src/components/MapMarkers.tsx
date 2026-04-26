@@ -38,6 +38,8 @@ interface ComparePlacePoint {
 
 const MAP_MARKER_LIMIT = 1800;
 const normalizeTemporalPlaceId = (placeId: string): string => placeId.trim().toLowerCase();
+const normalizeIncomingPlaceId = (row: any): string =>
+    String(row?.mock_id ?? row?.place_id ?? row?.placeId ?? row?.id ?? row?.nb_place_id ?? '').toLowerCase().trim();
 
 const toFiniteNumber = (value: unknown): number | null => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : null;
@@ -166,7 +168,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSeque
             const merged = new Map<string, ComparePlacePoint>();
             const ingest = (rows: any[], side: 'A' | 'B') => {
                 rows.forEach((row) => {
-                    const placeId = String(row?.nb_place_id ?? row?.id ?? '').toLowerCase().trim();
+                    const placeId = normalizeIncomingPlaceId(row);
                     if (!placeId) return;
                     const lat = Number(row?.lat ?? row?.latitude);
                     const lon = Number(row?.lon ?? row?.longitude);
@@ -317,7 +319,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSeque
         const progressPct = Math.max(0, Math.min(100, Math.round(bookSequence?.progressPct || 0)));
         const cappedLength = rawSequenceRows.length === 0
             ? 0
-            : Math.max(0, Math.floor((progressPct / 100) * rawSequenceRows.length));
+            : 1 + Math.floor((progressPct / 100) * Math.max(0, rawSequenceRows.length - 1));
         const progressRows = rawSequenceRows.slice(0, cappedLength);
         const lineRows = bookSequence?.shortStepsMode
             ? filterByShortSteps(progressRows, Math.max(1, bookSequence?.maxStepKm || 1))
@@ -394,6 +396,9 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSeque
             );
             const inGeoFocus = hasGeoFocus && placeIdCandidates.some((candidate) => geoFocusIds.has(candidate));
             if (hasGeoFocus && geoFocus?.dimOthers && !inGeoFocus) {
+                return null;
+            }
+            if (hasSequence && bookSequence?.dimOthers && !inBookSequence) {
                 return null;
             }
             const shouldDimBySequence = hasSequence && bookSequence?.dimOthers && !inBookSequence;
@@ -483,11 +488,12 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSeque
                     }
                 }
                 if (lat === null || lon === null) return null;
+                const overlayRadius = Math.max(3.5, 4.6 * (markerSizeScale / 100));
                 return (
                     <CircleMarker
                         key={`seq-extra-${idx}-${lat}-${lon}`}
                         center={[lat, lon]}
-                        radius={4.6}
+                        radius={overlayRadius}
                         pathOptions={{
                             color: '#ca8a04',
                             fillColor: '#eab308',

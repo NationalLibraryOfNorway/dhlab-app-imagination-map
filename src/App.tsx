@@ -10,6 +10,7 @@ import { CorpusBrowseTable } from './components/CorpusBrowseTable'
 import { EntityInspectorPanel } from './components/EntityInspectorPanel'
 import { Omnibox } from './components/Omnibox'
 import { VisualsCard } from './components/VisualsCard'
+import { SegmentViewCard } from './components/SegmentViewCard'
 import { PlaceStatsCard } from './components/PlaceStatsCard'
 import { VisualsLauncherChip } from './components/VisualsLauncherChip'
 import { SettingsLauncherChip } from './components/SettingsLauncherChip'
@@ -46,10 +47,10 @@ function App() {
     selectedPlaceKindFilter
   } = useCorpus();
   const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(null);
-  const [isAuthorsInspectorOpen, setIsAuthorsInspectorOpen] = useState(false);
-  const [authorsInspectorTab, setAuthorsInspectorTab] = useState<'list' | 'images'>('list');
-  const [isPlacesInspectorOpen, setIsPlacesInspectorOpen] = useState(false);
-  const [placesInspectorTab, setPlacesInspectorTab] = useState<'list' | 'images'>('list');
+  const [isAuthorsListOpen, setIsAuthorsListOpen] = useState(false);
+  const [isAuthorsImagesOpen, setIsAuthorsImagesOpen] = useState(false);
+  const [isPlacesListOpen, setIsPlacesListOpen] = useState(false);
+  const [isPlacesImagesOpen, setIsPlacesImagesOpen] = useState(false);
   const [isTemporalOpen, setIsTemporalOpen] = useState(false);
   const [isBookSequenceOpen, setIsBookSequenceOpen] = useState(false);
   const [sequenceBookId, setSequenceBookId] = useState<number | null>(null);
@@ -64,6 +65,7 @@ function App() {
   const [geoFocusStyle, setGeoFocusStyle] = useState<'fill' | 'ring'>('ring');
   const [isPlaceStatsOpen, setIsPlaceStatsOpen] = useState(false);
   const [isPlaceQaOpen, setIsPlaceQaOpen] = useState(false);
+  const [isSegmentViewOpen, setIsSegmentViewOpen] = useState(false);
 
   const openBookSequenceForBook = (bookId: number) => {
     setSequenceBookId(bookId);
@@ -131,6 +133,15 @@ function App() {
             setActiveWindow('visuals');
           }
         }}
+        onSegmentViewClick={() => {
+          if (isSegmentViewOpen && activeWindow === 'segmentView') {
+            setIsSegmentViewOpen(false);
+            setActiveWindow(null);
+          } else {
+            setIsSegmentViewOpen(true);
+            setActiveWindow('segmentView');
+          }
+        }}
         onVisualsPlaceStatsClick={() => {
           if (isPlaceStatsOpen && activeWindow === 'placeStats') {
             setIsPlaceStatsOpen(false);
@@ -139,21 +150,6 @@ function App() {
             setIsPlaceStatsOpen(true);
             setActiveWindow('placeStats');
           }
-        }}
-        onVisualsMapClick={() => {
-          setMapVisualMode('map');
-          setIsVisualsOpen(true);
-          setActiveWindow('visuals');
-        }}
-        onVisualsHeatmapClick={() => {
-          setMapVisualMode('heatmap');
-          setIsVisualsOpen(true);
-          setActiveWindow('visuals');
-        }}
-        onVisualsHeatmapAllClick={() => {
-          setMapVisualMode('heatmap-all');
-          setIsVisualsOpen(true);
-          setActiveWindow('visuals');
         }}
       />
       <SettingsLauncherChip
@@ -210,43 +206,39 @@ function App() {
           }
         }}
         onAuthorsListClick={() => {
-          if (isAuthorsInspectorOpen && activeWindow === 'entityAuthors' && authorsInspectorTab === 'list') {
-            setIsAuthorsInspectorOpen(false);
+          if (isAuthorsListOpen && activeWindow === 'entityAuthorsList') {
+            setIsAuthorsListOpen(false);
             setActiveWindow(null);
           } else {
-            setIsAuthorsInspectorOpen(true);
-            setAuthorsInspectorTab('list');
-            setActiveWindow('entityAuthors');
+            setIsAuthorsListOpen(true);
+            setActiveWindow('entityAuthorsList');
           }
         }}
         onAuthorsImagesClick={() => {
-          if (isAuthorsInspectorOpen && activeWindow === 'entityAuthors' && authorsInspectorTab === 'images') {
-            setIsAuthorsInspectorOpen(false);
+          if (isAuthorsImagesOpen && activeWindow === 'entityAuthorsImages') {
+            setIsAuthorsImagesOpen(false);
             setActiveWindow(null);
           } else {
-            setIsAuthorsInspectorOpen(true);
-            setAuthorsInspectorTab('images');
-            setActiveWindow('entityAuthors');
+            setIsAuthorsImagesOpen(true);
+            setActiveWindow('entityAuthorsImages');
           }
         }}
         onPlacesListClick={() => {
-          if (isPlacesInspectorOpen && activeWindow === 'entityPlaces' && placesInspectorTab === 'list') {
-            setIsPlacesInspectorOpen(false);
+          if (isPlacesListOpen && activeWindow === 'entityPlacesList') {
+            setIsPlacesListOpen(false);
             setActiveWindow(null);
           } else {
-            setIsPlacesInspectorOpen(true);
-            setPlacesInspectorTab('list');
-            setActiveWindow('entityPlaces');
+            setIsPlacesListOpen(true);
+            setActiveWindow('entityPlacesList');
           }
         }}
         onPlacesImagesClick={() => {
-          if (isPlacesInspectorOpen && activeWindow === 'entityPlaces' && placesInspectorTab === 'images') {
-            setIsPlacesInspectorOpen(false);
+          if (isPlacesImagesOpen && activeWindow === 'entityPlacesImages') {
+            setIsPlacesImagesOpen(false);
             setActiveWindow(null);
           } else {
-            setIsPlacesInspectorOpen(true);
-            setPlacesInspectorTab('images');
-            setActiveWindow('entityPlaces');
+            setIsPlacesImagesOpen(true);
+            setActiveWindow('entityPlacesImages');
           }
         }}
         onPlacesGeoConcordanceClick={() => {
@@ -279,6 +271,13 @@ function App() {
       <div className="workspace-zone">
         <CorpusBuilderCard />
         <VisualsCard />
+        <SegmentViewCard
+          isOpen={isSegmentViewOpen}
+          onClose={() => {
+            setIsSegmentViewOpen(false);
+            if (activeWindow === 'segmentView') setActiveWindow(null);
+          }}
+        />
         <PlaceStatsCard
           isOpen={isPlaceStatsOpen}
           onClose={() => {
@@ -339,15 +338,15 @@ function App() {
           }}
         />
         <CorpusBrowseTable onShowBookSequence={openBookSequenceForBook} />
-        {isAuthorsInspectorOpen && (
+        {isAuthorsListOpen && (
           <EntityInspectorPanel
             mode="authors"
-            windowKey="entityAuthors"
+            windowKey="entityAuthorsList"
             defaultPosition={{ x: 80, y: 24 }}
-            initialTab={authorsInspectorTab}
+            initialTab="list"
             onClose={() => {
-              setIsAuthorsInspectorOpen(false);
-              if (activeWindow === 'entityAuthors') setActiveWindow(null);
+              setIsAuthorsListOpen(false);
+              if (activeWindow === 'entityAuthorsList') setActiveWindow(null);
             }}
             onSelectPlace={(place) => {
               setSelectedPlace(place);
@@ -355,15 +354,47 @@ function App() {
             }}
           />
         )}
-        {isPlacesInspectorOpen && (
+        {isAuthorsImagesOpen && (
+          <EntityInspectorPanel
+            mode="authors"
+            windowKey="entityAuthorsImages"
+            defaultPosition={{ x: 140, y: 70 }}
+            initialTab="images"
+            onClose={() => {
+              setIsAuthorsImagesOpen(false);
+              if (activeWindow === 'entityAuthorsImages') setActiveWindow(null);
+            }}
+            onSelectPlace={(place) => {
+              setSelectedPlace(place);
+              setActiveWindow('summary');
+            }}
+          />
+        )}
+        {isPlacesListOpen && (
           <EntityInspectorPanel
             mode="places"
-            windowKey="entityPlaces"
+            windowKey="entityPlacesList"
             defaultPosition={{ x: 180, y: 90 }}
-            initialTab={placesInspectorTab}
+            initialTab="list"
             onClose={() => {
-              setIsPlacesInspectorOpen(false);
-              if (activeWindow === 'entityPlaces') setActiveWindow(null);
+              setIsPlacesListOpen(false);
+              if (activeWindow === 'entityPlacesList') setActiveWindow(null);
+            }}
+            onSelectPlace={(place) => {
+              setSelectedPlace(place);
+              setActiveWindow('summary');
+            }}
+          />
+        )}
+        {isPlacesImagesOpen && (
+          <EntityInspectorPanel
+            mode="places"
+            windowKey="entityPlacesImages"
+            defaultPosition={{ x: 240, y: 140 }}
+            initialTab="images"
+            onClose={() => {
+              setIsPlacesImagesOpen(false);
+              if (activeWindow === 'entityPlacesImages') setActiveWindow(null);
             }}
             onSelectPlace={(place) => {
               setSelectedPlace(place);

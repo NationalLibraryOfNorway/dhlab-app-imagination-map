@@ -97,7 +97,7 @@ function formatPlaceId(row: GeoRow): string {
 
 function highlightGeoBracket(fragment: string): string {
   return fragment.replace(/\[([^\]]+)\]/g, (_m, inner: string) => {
-    return `[<mark class="geo-place-mark">${inner}</mark>]`;
+    return `[<span class="geo-place-mark">${inner}</span>]`;
   });
 }
 
@@ -688,7 +688,7 @@ export const GeoConcordanceCard: React.FC<GeoConcordanceCardProps> = ({
                       const withTerm = highlightTerms.length > 0
                         ? highlightTerms.reduce((acc, token) => {
                             if (!token) return acc;
-                            return acc.replace(new RegExp(escapeRegExp(token), 'gi'), (m) => `<mark>${m}</mark>`);
+                            return acc.replace(new RegExp(escapeRegExp(token), 'gi'), (m) => `<mark class="geo-term-mark">${m}</mark>`);
                           }, fragment)
                         : fragment;
                       const html = highlightGeoBracket(withTerm);

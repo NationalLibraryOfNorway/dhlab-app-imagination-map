@@ -34,7 +34,7 @@ const toNumber = (value: unknown): number | null => {
 };
 
 const toPlacePoint = (row: any): PlacePoint | null => {
-  const idRaw = row?.nb_place_id ?? row?.id;
+  const idRaw = row?.mock_id ?? row?.place_id ?? row?.placeId ?? row?.id ?? row?.nb_place_id;
   const tokenRaw = row?.token ?? row?.historical_name ?? row?.name ?? row?.modern_name;
   const nameRaw = row?.name ?? row?.modern_name ?? row?.canonical_name ?? row?.token;
   const lat = toNumber(row?.lat ?? row?.latitude);
@@ -114,8 +114,8 @@ interface CorpusContextType {
   setIsSettingsOpen: (val: boolean) => void;
   isGeoConcordanceOpen: boolean;
   setIsGeoConcordanceOpen: (val: boolean) => void;
-  activeWindow: 'builder' | 'browse' | 'visuals' | 'placeStats' | 'settings' | 'placeQa' | 'temporal' | 'geoConcordance' | 'bookSequence' | 'entityAuthors' | 'entityPlaces' | 'summary' | null;
-  setActiveWindow: (window: 'builder' | 'browse' | 'visuals' | 'placeStats' | 'settings' | 'placeQa' | 'temporal' | 'geoConcordance' | 'bookSequence' | 'entityAuthors' | 'entityPlaces' | 'summary' | null) => void;
+  activeWindow: 'builder' | 'browse' | 'visuals' | 'segmentView' | 'placeStats' | 'settings' | 'placeQa' | 'temporal' | 'geoConcordance' | 'bookSequence' | 'entityAuthorsList' | 'entityAuthorsImages' | 'entityPlacesList' | 'entityPlacesImages' | 'summary' | null;
+  setActiveWindow: (window: 'builder' | 'browse' | 'visuals' | 'segmentView' | 'placeStats' | 'settings' | 'placeQa' | 'temporal' | 'geoConcordance' | 'bookSequence' | 'entityAuthorsList' | 'entityAuthorsImages' | 'entityPlacesList' | 'entityPlacesImages' | 'summary' | null) => void;
   // Map properties
   places: PlacePoint[];
   totalPlaces: number;
@@ -166,7 +166,7 @@ export const CorpusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [isVisualsOpen, setIsVisualsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isGeoConcordanceOpen, setIsGeoConcordanceOpen] = useState(false);
-  const [activeWindow, setActiveWindow] = useState<'builder' | 'browse' | 'visuals' | 'placeStats' | 'settings' | 'placeQa' | 'temporal' | 'geoConcordance' | 'bookSequence' | 'entityAuthors' | 'entityPlaces' | 'summary' | null>(null);
+  const [activeWindow, setActiveWindow] = useState<'builder' | 'browse' | 'visuals' | 'segmentView' | 'placeStats' | 'settings' | 'placeQa' | 'temporal' | 'geoConcordance' | 'bookSequence' | 'entityAuthorsList' | 'entityAuthorsImages' | 'entityPlacesList' | 'entityPlacesImages' | 'summary' | null>(null);
   
   const [places, setPlaces] = useState<PlacePoint[]>([]);
   const [totalPlaces, setTotalPlaces] = useState<number>(0);
@@ -180,7 +180,7 @@ export const CorpusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [maxPlacesInView, setMaxPlacesInView] = useState<number>(7000);
   const [temporalEnabled, setTemporalEnabled] = useState<boolean>(false);
   const [temporalCutoffYear, setTemporalCutoffYear] = useState<number | null>(null);
-  const [temporalMode, setTemporalMode] = useState<'color' | 'toggle'>('color');
+  const [temporalMode, setTemporalMode] = useState<'color' | 'toggle'>('toggle');
   const [selectedPlaceKindFilter, setSelectedPlaceKindFilter] = useState<string | null>(null);
   const [spuriousMentionsRatioThreshold, setSpuriousMentionsRatioThreshold] = useState<number>(50);
 

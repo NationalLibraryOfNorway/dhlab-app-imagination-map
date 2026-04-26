@@ -270,14 +270,18 @@
   pointer-events: none;
 }
 
-.geo-conc-snippet mark {
-  background: rgba(250, 204, 21, 0.35);
+.geo-conc-snippet .geo-term-mark {
+  background: rgba(96, 165, 250, 0.28);
+  color: #1e3a8a;
   border-radius: 3px;
+  padding: 0 1px;
 }
 
 .geo-conc-snippet .geo-place-mark {
-  background: rgba(250, 204, 21, 0.62);
+  background: rgba(250, 204, 21, 0.5);
+  color: #854d0e;
   border-radius: 3px;
+  padding: 0 1px;
 }
 
 .geo-conc-meta {

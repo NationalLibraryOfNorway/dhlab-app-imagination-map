@@ -49,7 +49,7 @@ function buildGeoTermCandidates(placeId: string | null | undefined): string[] {
   const strippedGeo = raw.replace(/^#?geo:/i, '');
   const strippedNb = strippedGeo.replace(/^nb:/i, '').trim();
   if (!/^\d+$/.test(strippedNb)) return [];
-  return [`#geo:${strippedNb}`, `#geo:nb:${strippedNb}`];
+  return [`#geo:${strippedNb}`];
 }
 
 function extractHits(data: any): ConcordanceHit[] {
@@ -455,11 +455,7 @@ export const PlaceSummaryCard: React.FC<PlaceSummaryCardProps> = ({ token, place
                             <span>Forekomster: <strong>{books.reduce((sum, b) => sum + b.mentions, 0)}</strong></span>
                             <span>Unike bøker: <strong>{books.length}</strong></span>
                             <span>
-                                {effectivePlaceId?.startsWith('geonames:')
-                                    ? 'GeonameID'
-                                    : (effectivePlaceId?.startsWith('internal:') || effectivePlaceId?.startsWith('intern:'))
-                                        ? 'Intern-ID'
-                                        : 'Steds-ID'}:{' '}
+                                Steds-ID:{' '}
                                 <strong>{effectivePlaceId || 'mangler i datasettet'}</strong>
                             </span>
                         </div>

@@ -9,7 +9,7 @@ import './EntityInspectorPanel.css';
 interface EntityInspectorPanelProps {
   mode: 'authors' | 'places' | null;
   initialTab?: 'list' | 'images';
-  windowKey?: 'entityAuthors' | 'entityPlaces';
+  windowKey?: 'entityAuthorsList' | 'entityAuthorsImages' | 'entityPlacesList' | 'entityPlacesImages';
   defaultPosition?: { x: number; y: number };
   onClose: () => void;
   onSelectPlace: (place: { token: string; placeId?: string }) => void;
@@ -25,6 +25,9 @@ interface AuthorStat {
 
 type AuthorSortKey = 'label' | 'books' | 'places' | 'mentions';
 type PlaceSortKey = 'token' | 'name' | 'doc_count' | 'frequency';
+const PLACE_IMAGE_SEARCH_THRESHOLD = 24;
+const fullPlacesCache = new Map<string, any[]>();
+const fullPlacesInflight = new Map<string, Promise<any[]>>();
 
 function splitAuthors(raw: string): string[] {
   return raw
@@ -51,10 +54,21 @@ function getMentionsPerBookRatio(place: { frequency: number; doc_count: number }
   return place.frequency / place.doc_count;
 }
 
+function matchesPlaceQuery(place: { token?: string | null; name?: string | null }, query: string): boolean {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return true;
+  return (place.token || '').toLowerCase().includes(normalized)
+    || (place.name || '').toLowerCase().includes(normalized);
+}
+
+function buildPlacesCorpusKey(activeDhlabids: number[]): string {
+  return [...activeDhlabids].sort((a, b) => a - b).join(',');
+}
+
 export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
   mode,
   initialTab = 'list',
-  windowKey = 'entityPlaces',
+  windowKey = 'entityPlacesList',
   defaultPosition,
   onClose,
   onSelectPlace
@@ -77,6 +91,7 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
   const [imagesError, setImagesError] = useState<string | null>(null);
   const [authorImageQuery, setAuthorImageQuery] = useState('');
   const [authorImageSearchTerm, setAuthorImageSearchTerm] = useState('');
+  const [placeImageQuery, setPlaceImageQuery] = useState('');
   const [authorQuery, setAuthorQuery] = useState('');
   const [authorSortKey, setAuthorSortKey] = useState<AuthorSortKey>('books');
   const [authorSortDir, setAuthorSortDir] = useState<'asc' | 'desc'>('desc');
@@ -96,7 +111,7 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
     (rows || [])
       .map((row) => ({
         ...row,
-        id: String(row?.nb_place_id ?? row?.id ?? ''),
+        id: String(row?.mock_id ?? row?.place_id ?? row?.placeId ?? row?.id ?? row?.nb_place_id ?? ''),
         token: String(row?.token ?? row?.historical_name ?? row?.name ?? '').trim(),
         name: row?.name ?? row?.modern_name ?? row?.token ?? null,
         lat: Number(row?.lat ?? row?.latitude),
@@ -122,8 +137,15 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
       return;
     }
 
+    const corpusKey = buildPlacesCorpusKey(activeDhlabids);
+    const cachedRows = fullPlacesCache.get(corpusKey);
+    if (cachedRows) {
+      setAllPlaceRows(cachedRows);
+      return;
+    }
+
     let cancelled = false;
-    fetch(`${API_URL}/api/places`, {
+    const inflightRequest = fullPlacesInflight.get(corpusKey) || fetch(`${API_URL}/api/places`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -136,8 +158,20 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
         return res.json();
       })
       .then((data) => {
+        const normalizedRows = normalizePlaceRows(data.places || []);
+        fullPlacesCache.set(corpusKey, normalizedRows);
+        return normalizedRows;
+      })
+      .finally(() => {
+        fullPlacesInflight.delete(corpusKey);
+      });
+
+    fullPlacesInflight.set(corpusKey, inflightRequest);
+
+    inflightRequest
+      .then((rows) => {
         if (cancelled) return;
-        setAllPlaceRows(normalizePlaceRows(data.places || []));
+        setAllPlaceRows(rows);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -237,17 +271,10 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
     );
   };
 
-  const placeRows = useMemo(() => {
-    const query = placeQuery.trim().toLowerCase();
+  const placeSharedRows = useMemo(() => {
     let rows = [...placesData];
     if (hideSpuriousPlaces) {
       rows = rows.filter((place) => getMentionsPerBookRatio(place) <= spuriousMentionsRatioThreshold);
-    }
-    if (query) {
-      rows = rows.filter((place) =>
-        (place.token || '').toLowerCase().includes(query) ||
-        (place.name || '').toLowerCase().includes(query)
-      );
     }
     rows.sort((a, b) => {
       let cmp = 0;
@@ -258,7 +285,12 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
       return placeSortDir === 'asc' ? cmp : -cmp;
     });
     return rows;
-  }, [placesData, hideSpuriousPlaces, placeQuery, placeSortKey, placeSortDir, spuriousMentionsRatioThreshold]);
+  }, [placesData, hideSpuriousPlaces, placeSortKey, placeSortDir, spuriousMentionsRatioThreshold]);
+
+  const placeListRows = useMemo(() => {
+    const query = placeQuery.trim().toLowerCase();
+    return query ? placeSharedRows.filter((place) => matchesPlaceQuery(place, query)) : placeSharedRows;
+  }, [placeSharedRows, placeQuery]);
 
   const spuriousPlaceCount = useMemo(
     () => placesData.filter((place) => getMentionsPerBookRatio(place) > spuriousMentionsRatioThreshold).length,
@@ -266,15 +298,15 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
   );
 
   const placeRowsView = useMemo(() => {
-    if (!sampleEnabled || placeRows.length <= sampleSize) return placeRows;
-    return [...placeRows]
+    if (!sampleEnabled || placeListRows.length <= sampleSize) return placeListRows;
+    return [...placeListRows]
       .sort((a, b) => {
         const ah = hashToken(`${a.id}:${sampleSeed}`);
         const bh = hashToken(`${b.id}:${sampleSeed}`);
         return ah - bh;
       })
       .slice(0, sampleSize);
-  }, [placeRows, sampleEnabled, sampleSize, sampleSeed]);
+  }, [placeListRows, sampleEnabled, sampleSize, sampleSeed]);
 
   const placeTotalPages = Math.max(1, Math.ceil(placeRowsView.length / rowsPerPage));
 
@@ -317,19 +349,25 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
       return;
     }
     if (mode === 'places') {
-      if (placeRows.length === 0) {
+      const availableRows = activeTab === 'images' ? placeSharedRows : placeListRows;
+      if (availableRows.length === 0) {
         setSelectedKey('');
         return;
       }
-      setSelectedKey((current) => (placeRows.some((row) => row.token === current) ? current : placeRows[0].token));
+      setSelectedKey((current) => (availableRows.some((row) => row.token === current) ? current : availableRows[0].token));
     }
-  }, [mode, authorRowsSorted, placeRows]);
+  }, [mode, activeTab, authorRowsSorted, placeListRows, placeSharedRows]);
 
   useEffect(() => {
     if (mode !== 'authors') return;
     setAuthorImageQuery(selectedKey);
     setAuthorImageSearchTerm(selectedKey);
   }, [mode, selectedKey]);
+
+  const placeImageRows = useMemo(() => {
+    const query = (placeSharedRows.length > PLACE_IMAGE_SEARCH_THRESHOLD ? placeImageQuery : '').trim().toLowerCase();
+    return query ? placeSharedRows.filter((place) => matchesPlaceQuery(place, query)) : placeSharedRows;
+  }, [placeSharedRows, placeImageQuery]);
 
   const imageLookupKey = mode === 'authors'
     ? (authorImageSearchTerm.trim() || selectedKey)
@@ -394,15 +432,6 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
         </h3>
         <button onClick={onClose} aria-label="Lukk panel">
           <i className="fas fa-times"></i>
-        </button>
-      </div>
-
-      <div className="entity-tabs">
-        <button
-          className={`entity-tab ${activeTab === 'list' ? 'active' : ''}`}
-          onClick={() => setActiveTab('list')}
-        >
-          Liste
         </button>
       </div>
 
@@ -556,9 +585,9 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
 
           <div className="entity-places-meta">
             Viser {placePageStart.toLocaleString()}-{placePageEnd.toLocaleString()} av {placeRowsView.length.toLocaleString()}
-            {sampleEnabled && placeRows.length > sampleSize
-              ? ` (sample fra ${placeRows.length.toLocaleString()})`
-              : ` (totalt ${placeRows.length.toLocaleString()})`}
+            {sampleEnabled && placeListRows.length > sampleSize
+              ? ` (sample fra ${placeListRows.length.toLocaleString()})`
+              : ` (totalt ${placeListRows.length.toLocaleString()})`}
             {spuriousPlaceCount > 0 && (
               <span>
                 {' '}| {spuriousPlaceCount.toLocaleString()} spuriøse ved terskel {spuriousMentionsRatioThreshold}
@@ -652,18 +681,30 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
       ) : (
       <div className={`entity-panel-body ${activeTab === 'list' ? 'list-only' : ''}`}>
         <div className="entity-list">
+          {mode === 'places' && activeTab === 'images' && placeSharedRows.length > PLACE_IMAGE_SEARCH_THRESHOLD && (
+            <div className="entity-list-toolbar">
+              <input
+                className="entity-search-input"
+                placeholder="Søk sted..."
+                value={placeImageQuery}
+                onChange={(e) => setPlaceImageQuery(e.target.value)}
+              />
+            </div>
+          )}
           {mode === 'authors' && authorRowsSorted.length === 0 ? (
             <div className="entity-empty">Ingen forfattere i aktivt korpus</div>
-          ) : mode === 'places' && placeRows.length === 0 ? (
+          ) : mode === 'places' && activeTab === 'images' && placeImageRows.length === 0 ? (
+            <div className="entity-empty">Ingen steder matcher dette søket.</div>
+          ) : mode === 'places' && placeSharedRows.length === 0 ? (
             <div className="entity-empty">
               {isPlacesLoading ? 'Laster steder...' : `Ingen ${title.toLowerCase()} i aktivt korpus`}
             </div>
           ) : (
-            (mode === 'authors' ? authorRowsSorted : placeRows.slice(0, 200).map((row) => ({
+            (mode === 'authors' ? authorRowsSorted : placeImageRows.map((row) => ({
               key: row.token,
               label: row.token,
               sublabel: `${row.frequency.toLocaleString()} treff i ${row.doc_count.toLocaleString()} bøker`
-            }))).slice(0, 200).map((item) => (
+            }))).map((item) => (
               <button
                 key={item.key}
                 className={`entity-row ${selectedKey === item.key ? 'active' : ''}`}
@@ -682,7 +723,7 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
             {mode === 'places' && selectedKey && (
               <button
                 className="entity-action"
-                onClick={() => onSelectPlace({ token: selectedKey, placeId: placeRows.find((p) => p.token === selectedKey)?.id })}
+                onClick={() => onSelectPlace({ token: selectedKey, placeId: placeSharedRows.find((p) => p.token === selectedKey)?.id })}
               >
                 Vis i kart
               </button>

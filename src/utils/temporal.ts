@@ -12,7 +12,7 @@ const inflightFetches = new Map<string, Promise<Map<string, number>>>();
 const normalizePlaceId = (placeId: string): string => placeId.trim().toLowerCase();
 
 const normalizeFirstYearRow = (row: any): { placeId: string; year: number } | null => {
-  const placeIdRaw = row?.place_id ?? row?.placeId ?? row?.id ?? row?.nb_place_id;
+  const placeIdRaw = row?.mock_id ?? row?.place_id ?? row?.placeId ?? row?.id ?? row?.nb_place_id;
   const yearRaw = row?.year ?? row?.first_year ?? row?.firstYear;
   const placeId = normalizePlaceId(String(placeIdRaw ?? ''));
   const year = Number(yearRaw);

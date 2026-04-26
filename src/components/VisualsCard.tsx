@@ -25,10 +25,7 @@ export const VisualsCard: React.FC = () => {
     setMarkerSizeScale,
     heatmapStrength,
     setHeatmapStrength,
-    compareSegmentsEnabled,
-    setCompareSegmentsEnabled,
-    segmentABookIds,
-    segmentBBookIds
+    compareSegmentsEnabled
   } = useCorpus();
   const [isExporting, setIsExporting] = useState(false);
 
@@ -108,7 +105,7 @@ export const VisualsCard: React.FC = () => {
     >
       <div className="visuals-header drag-handle" onMouseDown={() => setActiveWindow('visuals')}>
         <div className="visuals-title">
-          <i className="fas fa-layer-group"></i> Visuals
+          <i className="fas fa-layer-group"></i> Visual mode
         </div>
         <div className="visuals-controls no-drag">
           <button onClick={() => setIsVisualsOpen(false)} title="Minimer til chip">
@@ -119,7 +116,7 @@ export const VisualsCard: React.FC = () => {
 
       <div className="visuals-body no-drag">
         <div className="visuals-section">
-          <label>Kartmodus</label>
+          <label>Visual mode</label>
           <div className="visuals-toggle-row">
             <button
               className={`visuals-toggle ${mapVisualMode === 'map' ? 'active' : ''}`}
@@ -222,23 +219,6 @@ export const VisualsCard: React.FC = () => {
           </div>
           <small className="visuals-help">
             Øker synlighet når det er få punkt i heatmap.
-          </small>
-        </div>
-
-        <div className="visuals-section">
-          <label>Segmentvisning (A/B)</label>
-          <div className="visuals-toggle-row">
-            <button
-              className={`visuals-toggle ${compareSegmentsEnabled ? 'active' : ''}`}
-              onClick={() => setCompareSegmentsEnabled(!compareSegmentsEnabled)}
-              disabled={segmentABookIds.length === 0 || segmentBBookIds.length === 0}
-              title={compareSegmentsEnabled ? 'Slå av sammenligning' : 'Sammenlign segment A og B'}
-            >
-              {compareSegmentsEnabled ? 'Slå av sammenligning' : 'Sammenlign A/B'}
-            </button>
-          </div>
-          <small className="visuals-help">
-            Velg A/B per bok i bøkerlista. Nå: A={segmentABookIds.length}, B={segmentBBookIds.length}. Kartfarger: blå = kun A, rød = kun B, lilla = begge.
           </small>
         </div>
 

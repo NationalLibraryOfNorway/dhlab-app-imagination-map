@@ -192,7 +192,10 @@ export const TemporalCard: React.FC<TemporalCardProps> = ({ isOpen, onClose }) =
 
       <div className="temporal-body no-drag">
         <div className="temporal-section">
-          <label>Skilleår ({effectiveYear})</label>
+          <div className="temporal-year-header">
+            <label>År</label>
+            <div className="temporal-year-display" aria-live="polite">{effectiveYear}</div>
+          </div>
           <div style={{ padding: '0 8px' }}>
             <Slider
               min={minYear}
@@ -347,7 +350,7 @@ export const TemporalCard: React.FC<TemporalCardProps> = ({ isOpen, onClose }) =
                 <div className="temporal-chart-legend">
                   <span>Start ({minYear}): {chartGeometry.startValue.toLocaleString()}</span>
                   <span>Y: 0-{chartGeometry.yMax.toLocaleString()} steder (kumulativt)</span>
-                  <span>Cutoff: {effectiveYear}</span>
+                  <span>År: {effectiveYear}</span>
                 </div>
               </>
             )}

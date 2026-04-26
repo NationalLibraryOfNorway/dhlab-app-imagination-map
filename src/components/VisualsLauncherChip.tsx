@@ -4,19 +4,15 @@ import './VisualsLauncherChip.css';
 interface VisualsLauncherChipProps {
   hasActivePlaceKindFilter?: boolean;
   onVisualsDefaultClick: () => void;
+  onSegmentViewClick: () => void;
   onVisualsPlaceStatsClick: () => void;
-  onVisualsMapClick: () => void;
-  onVisualsHeatmapClick: () => void;
-  onVisualsHeatmapAllClick: () => void;
 }
 
 export const VisualsLauncherChip: React.FC<VisualsLauncherChipProps> = ({
   hasActivePlaceKindFilter = false,
   onVisualsDefaultClick,
-  onVisualsPlaceStatsClick,
-  onVisualsMapClick,
-  onVisualsHeatmapClick,
-  onVisualsHeatmapAllClick
+  onSegmentViewClick,
+  onVisualsPlaceStatsClick
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
@@ -86,11 +82,9 @@ export const VisualsLauncherChip: React.FC<VisualsLauncherChipProps> = ({
             scheduleClose();
           }}
         >
-          <button onClick={() => { onVisualsDefaultClick(); setIsOpen(false); }}>Visuals panel</button>
+          <button onClick={() => { onVisualsDefaultClick(); setIsOpen(false); }}>Visual mode</button>
+          <button onClick={() => { onSegmentViewClick(); setIsOpen(false); }}>Segmentvisning</button>
           <button onClick={() => { onVisualsPlaceStatsClick(); setIsOpen(false); }}>Place stats</button>
-          <button onClick={() => { onVisualsMapClick(); setIsOpen(false); }}>Kartmodus</button>
-          <button onClick={() => { onVisualsHeatmapClick(); setIsOpen(false); }}>Heatmap-modus</button>
-          <button onClick={() => { onVisualsHeatmapAllClick(); setIsOpen(false); }}>Heatmap (alle steder)</button>
         </div>
       )}
     </div>

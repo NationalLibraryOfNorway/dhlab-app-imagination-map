@@ -46,6 +46,26 @@
   font-weight: 600;
 }
 
+.temporal-year-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.temporal-year-header label {
+  margin-bottom: 0;
+}
+
+.temporal-year-display {
+  font-size: 1.35rem;
+  line-height: 1;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: 0.02em;
+}
+
 .temporal-toggle {
   border: 1px solid rgba(148, 163, 184, 0.45);
   background: rgba(255, 255, 255, 0.65);

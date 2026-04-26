@@ -77,7 +77,7 @@ export const BookSequenceCard: React.FC<BookSequenceCardProps> = ({
   const selectedInFiltered = !!selectedBookId && filteredBooks.some((book) => book.dhlabid === selectedBookId);
   const cumulativeCount = sequenceRows.length === 0
     ? 0
-    : Math.max(0, Math.floor((Math.max(0, Math.min(100, Math.round(progressPct))) / 100) * sequenceRows.length));
+    : 1 + Math.floor((Math.max(0, Math.min(100, Math.round(progressPct))) / 100) * Math.max(0, sequenceRows.length - 1));
   const { layout, onDrag, onDragStop, onResizeStop } = useWindowLayout({
     key: 'bookSequence',
     defaultLayout: { x: 560, y: 24, width: 500, height: 560 },

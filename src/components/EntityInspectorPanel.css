@@ -95,6 +95,11 @@
 .entity-list-toolbar {
   display: flex;
   gap: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--glass-bg);
+  padding-bottom: 8px;
   margin-bottom: 8px;
 }
 
@@ -168,6 +173,20 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 10px;
+}
+
+.entity-image-picker {
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 8px;
+}
+
+.entity-media--embedded {
+  padding: 0;
+  overflow-y: auto;
 }
 
 .entity-image-card {
