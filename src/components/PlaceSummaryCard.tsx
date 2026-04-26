@@ -8,6 +8,9 @@ import './PlaceSummaryCard.css';
 interface PlaceSummaryCardProps {
     token: string | null;
     placeId?: string | null;
+    fallbackName?: string | null;
+    fallbackLat?: number | null;
+    fallbackLon?: number | null;
     onClose: () => void;
     onShowBookSequence?: (bookId: number) => void;
 }
@@ -86,7 +89,15 @@ function uniqueHits(hits: ConcordanceHit[]): ConcordanceHit[] {
     return unique;
 }
 
-export const PlaceSummaryCard: React.FC<PlaceSummaryCardProps> = ({ token, placeId, onClose, onShowBookSequence }) => {
+export const PlaceSummaryCard: React.FC<PlaceSummaryCardProps> = ({
+    token,
+    placeId,
+    fallbackName,
+    fallbackLat,
+    fallbackLon,
+    onClose,
+    onShowBookSequence
+}) => {
     const { activeDhlabids, activeBooksMetadata, API_URL, activeWindow, setActiveWindow, places } = useCorpus();
     const [books, setBooks] = useState<PlaceBookDetail[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -102,10 +113,24 @@ export const PlaceSummaryCard: React.FC<PlaceSummaryCardProps> = ({ token, place
     const selectedPlace = useMemo(() => {
         if (!token) return null;
         if (placeId) {
-            return places.find((p) => String(p.id) === String(placeId)) || null;
+            const placeInCorpus = places.find((p) => String(p.id) === String(placeId)) || null;
+            if (placeInCorpus) return placeInCorpus;
         }
-        return places.find((p) => p.token === token) || null;
-    }, [token, placeId, places]);
+        const tokenMatch = places.find((p) => p.token === token) || null;
+        if (tokenMatch) return tokenMatch;
+        if (typeof fallbackLat === 'number' && typeof fallbackLon === 'number') {
+            return {
+                id: String(placeId || ''),
+                token,
+                name: fallbackName || null,
+                lat: fallbackLat,
+                lon: fallbackLon,
+                frequency: 0,
+                doc_count: 0
+            };
+        }
+        return null;
+    }, [token, placeId, places, fallbackName, fallbackLat, fallbackLon]);
     const effectivePlaceId = placeId || selectedPlace?.id;
     const sortedBooks = useMemo(
         () => [...books].sort((a, b) => b.mentions - a.mentions),
@@ -459,6 +484,21 @@ export const PlaceSummaryCard: React.FC<PlaceSummaryCardProps> = ({ token, place
                                 <strong>{effectivePlaceId || 'mangler i datasettet'}</strong>
                             </span>
                         </div>
+                        {selectedPlace?.name && selectedPlace.name !== token && (
+                            <div className="concordance-group-meta">
+                                Kanonisk navn: <strong>{selectedPlace.name}</strong>
+                            </div>
+                        )}
+                        {activeDhlabids.length === 0 && (
+                            <div className="concordance-group-meta">
+                                Globalt stedstreff valgt. Legg til bøker eller bygg et korpus for å se bokliste og konkordanser.
+                            </div>
+                        )}
+                        {activeDhlabids.length > 0 && sortedBooks.length === 0 && !isLoading && (
+                            <div className="concordance-group-meta">
+                                Ingen treff for dette stedet i aktivt korpus.
+                            </div>
+                        )}
 
                         <div className="concordance-toolbar">
                             <div className="summary-download-menu" ref={downloadMenuRef}>

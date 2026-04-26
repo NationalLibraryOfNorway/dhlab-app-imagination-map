@@ -26,6 +26,9 @@ import './index.css'
 interface SelectedPlace {
   token: string;
   placeId?: string;
+  name?: string | null;
+  lat?: number | null;
+  lon?: number | null;
 }
 
 function App() {
@@ -405,6 +408,9 @@ function App() {
         <PlaceSummaryCard
           token={selectedPlace?.token || null}
           placeId={selectedPlace?.placeId}
+          fallbackName={selectedPlace?.name}
+          fallbackLat={selectedPlace?.lat}
+          fallbackLon={selectedPlace?.lon}
           onClose={() => setSelectedPlace(null)}
           onShowBookSequence={openBookSequenceForBook}
         />

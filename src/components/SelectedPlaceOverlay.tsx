@@ -3,7 +3,7 @@ import { CircleMarker, Tooltip, useMap } from 'react-leaflet';
 import { useCorpus } from '../context/CorpusContext';
 
 interface SelectedPlaceOverlayProps {
-  selectedPlace: { token: string; placeId?: string } | null;
+  selectedPlace: { token: string; placeId?: string; name?: string | null; lat?: number | null; lon?: number | null } | null;
 }
 
 export const SelectedPlaceOverlay: React.FC<SelectedPlaceOverlayProps> = ({ selectedPlace }) => {
@@ -13,9 +13,23 @@ export const SelectedPlaceOverlay: React.FC<SelectedPlaceOverlayProps> = ({ sele
   const selected = useMemo(() => {
     if (!selectedPlace) return null;
     if (selectedPlace.placeId) {
-      return places.find((place) => String(place.id) === String(selectedPlace.placeId)) || null;
+      const placeInCorpus = places.find((place) => String(place.id) === String(selectedPlace.placeId)) || null;
+      if (placeInCorpus) return placeInCorpus;
     }
-    return places.find((place) => place.token === selectedPlace.token) || null;
+    const tokenMatch = places.find((place) => place.token === selectedPlace.token) || null;
+    if (tokenMatch) return tokenMatch;
+    if (typeof selectedPlace.lat === 'number' && typeof selectedPlace.lon === 'number') {
+      return {
+        id: selectedPlace.placeId || '',
+        token: selectedPlace.token,
+        name: selectedPlace.name || null,
+        lat: selectedPlace.lat,
+        lon: selectedPlace.lon,
+        frequency: 0,
+        doc_count: 0
+      };
+    }
+    return null;
   }, [places, selectedPlace]);
 
   useEffect(() => {
