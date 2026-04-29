@@ -24,6 +24,7 @@ export const CorpusBrowseTable: React.FC<CorpusBrowseTableProps> = ({ onShowBook
     } = useCorpus();
     const [sortKey, setSortKey] = useState<SortKey>('author');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [bookQuery, setBookQuery] = useState('');
     const { layout, onDrag, onDragStop, onResizeStop } = useWindowLayout({
         key: 'browse',
         defaultLayout: { x: 50, y: 50, width: 800, height: 500 },
@@ -32,7 +33,7 @@ export const CorpusBrowseTable: React.FC<CorpusBrowseTableProps> = ({ onShowBook
     });
 
     const handleDownload = () => {
-        const rows = sortedBooks.map((b) => ([
+        const rows = visibleBooks.map((b) => ([
             b.urn.replace('URN:NBN:no-nb_digibok_', ''),
             b.author || '',
             b.year ?? '',
@@ -43,7 +44,7 @@ export const CorpusBrowseTable: React.FC<CorpusBrowseTableProps> = ({ onShowBook
             b.dhlabid
         ]));
         downloadCsv(
-            `imagination_korpus_${sortedBooks.length}_boker.csv`,
+            `imagination_korpus_${visibleBooks.length}_boker.csv`,
             ['URN', 'Forfatter', 'År', 'Tittel', 'Kategori', 'Antall steder', 'Antall mentions', 'dhlabid'],
             rows
         );
@@ -59,8 +60,16 @@ export const CorpusBrowseTable: React.FC<CorpusBrowseTableProps> = ({ onShowBook
     };
 
     // Dynamisk sortering
-    const sortedBooks = useMemo(() => {
-        return [...activeBooksMetadata].sort((a, b) => {
+    const visibleBooks = useMemo(() => {
+        const normalizedQuery = bookQuery.trim().toLowerCase();
+        const filteredBooks = normalizedQuery
+            ? activeBooksMetadata.filter((book) => {
+                const haystack = `${book.author || ''} ${book.title || ''}`.toLowerCase();
+                return haystack.includes(normalizedQuery);
+            })
+            : activeBooksMetadata;
+
+        return [...filteredBooks].sort((a, b) => {
             const valA = a[sortKey];
             const valB = b[sortKey];
 
@@ -77,7 +86,7 @@ export const CorpusBrowseTable: React.FC<CorpusBrowseTableProps> = ({ onShowBook
 
             return sortOrder === 'asc' ? comparison : -comparison;
         });
-    }, [activeBooksMetadata, sortKey, sortOrder]);
+    }, [activeBooksMetadata, bookQuery, sortKey, sortOrder]);
 
     useEffect(() => {
         const available = new Set(activeBooksMetadata.map((book) => book.dhlabid));
@@ -90,12 +99,12 @@ export const CorpusBrowseTable: React.FC<CorpusBrowseTableProps> = ({ onShowBook
     }, [activeBooksMetadata, bookSegmentAssignments, setBookSegmentAssignment]);
 
     const aCount = useMemo(
-        () => sortedBooks.filter((book) => bookSegmentAssignments[book.dhlabid] === 'A').length,
-        [sortedBooks, bookSegmentAssignments]
+        () => visibleBooks.filter((book) => bookSegmentAssignments[book.dhlabid] === 'A').length,
+        [visibleBooks, bookSegmentAssignments]
     );
     const bCount = useMemo(
-        () => sortedBooks.filter((book) => bookSegmentAssignments[book.dhlabid] === 'B').length,
-        [sortedBooks, bookSegmentAssignments]
+        () => visibleBooks.filter((book) => bookSegmentAssignments[book.dhlabid] === 'B').length,
+        [visibleBooks, bookSegmentAssignments]
     );
 
     if (!isBrowseTableOpen) return null;
@@ -139,7 +148,18 @@ export const CorpusBrowseTable: React.FC<CorpusBrowseTableProps> = ({ onShowBook
 
                 <div className="table-body no-drag">
                     <div className="table-selection-toolbar">
-                        <small className="text-muted">A: {aCount} | B: {bCount}</small>
+                        <div className="table-selection-summary">
+                            <input
+                                className="table-search-input"
+                                type="text"
+                                value={bookQuery}
+                                onChange={(e) => setBookQuery(e.target.value)}
+                                placeholder="Søk i forfatter og tittel..."
+                            />
+                            <small className="text-muted">
+                                Viser {visibleBooks.length} av {activeBooksMetadata.length} | A: {aCount} | B: {bCount}
+                            </small>
+                        </div>
                         <div className="table-selection-actions">
                             <button className="btn-text" type="button" onClick={clearBookSegmentAssignments}>
                                 Nullstill A/B
@@ -162,7 +182,7 @@ export const CorpusBrowseTable: React.FC<CorpusBrowseTableProps> = ({ onShowBook
                                 </tr>
                             </thead>
                             <tbody>
-                                {sortedBooks.map(b => (
+                                {visibleBooks.map(b => (
                                     <tr key={b.dhlabid} className={`segment-${bookSegmentAssignments[b.dhlabid] || 'none'}`}>
                                         <td className="segment-column">
                                             <div className="segment-toggle-group" role="group" aria-label={`Segment for ${b.title || b.dhlabid}`}>
@@ -211,9 +231,11 @@ export const CorpusBrowseTable: React.FC<CorpusBrowseTableProps> = ({ onShowBook
                                         </td>
                                     </tr>
                                 ))}
-                                {sortedBooks.length === 0 && (
+                                {visibleBooks.length === 0 && (
                                     <tr>
-                                        <td colSpan={9} className="empty-state">Ingen bøker i aktivt korpus</td>
+                                        <td colSpan={9} className="empty-state">
+                                            {activeBooksMetadata.length === 0 ? 'Ingen bøker i aktivt korpus' : 'Ingen bøker matcher søket'}
+                                        </td>
                                     </tr>
                                 )}
                             </tbody>

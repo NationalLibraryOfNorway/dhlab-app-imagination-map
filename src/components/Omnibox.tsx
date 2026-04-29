@@ -50,6 +50,55 @@ function splitAuthors(raw: string): string[] {
     .filter(Boolean);
 }
 
+function normalizeUrn(value: string | null | undefined): string {
+  return (value || '').trim().replace(/\/+$/, '');
+}
+
+function toNbItemUrl(urn: string | null | undefined): string {
+  const cleanUrn = normalizeUrn(urn);
+  return cleanUrn ? `https://www.nb.no/items/${encodeURIComponent(cleanUrn)}` : 'https://www.nb.no/';
+}
+
+function toNbUrnUrl(urn: string | null | undefined): string {
+  const cleanUrn = normalizeUrn(urn);
+  return cleanUrn ? `https://urn.nb.no/${cleanUrn}` : '';
+}
+
+function extractUrnLikeValue(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  try {
+    const url = new URL(trimmed);
+    if (url.hostname === 'urn.nb.no') {
+      return decodeURIComponent(url.pathname.replace(/^\/+/, '')).replace(/\/+$/, '');
+    }
+    if (url.hostname === 'www.nb.no' || url.hostname === 'nb.no') {
+      const itemsMatch = decodeURIComponent(url.pathname).match(/\/items\/(.+)$/);
+      if (itemsMatch) return itemsMatch[1].replace(/\/+$/, '');
+    }
+  } catch {
+    // Not a URL; fall through.
+  }
+  return trimmed.replace(/\/+$/, '');
+}
+
+function buildBookSearchText(book: { title: string | null; author: string | null; year: number | null; urn: string }): string {
+  const urn = normalizeUrn(book.urn);
+  const shortUrn = urn.replace(/^URN:NBN:no-nb_digibok_/i, '');
+  return [
+    book.title || '',
+    book.author || '',
+    String(book.year || ''),
+    urn,
+    shortUrn,
+    toNbItemUrl(urn),
+    toNbUrnUrl(urn)
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
 export const Omnibox: React.FC<OmniboxProps> = ({ onSelectPlace }) => {
   const { allBooks, activeDhlabids, setActiveDhlabids, places, API_URL } = useCorpus();
   const [query, setQuery] = useState('');
@@ -84,12 +133,17 @@ export const Omnibox: React.FC<OmniboxProps> = ({ onSelectPlace }) => {
       return { books: [], authors: [] };
     }
     const tokens = tokenize(term);
+    const normalizedDirectTerm = extractUrnLikeValue(term).toLowerCase();
 
     const books = allBooks
-      .filter((book) => hasAllTokens(book.title, tokens))
+      .filter((book) => hasAllTokens(buildBookSearchText(book), tokens))
       .sort((a, b) => {
-        const aExact = (a.title || '').toLowerCase() === term.toLowerCase();
-        const bExact = (b.title || '').toLowerCase() === term.toLowerCase();
+        const haystackA = buildBookSearchText(a);
+        const haystackB = buildBookSearchText(b);
+        const urnA = normalizeUrn(a.urn).toLowerCase();
+        const urnB = normalizeUrn(b.urn).toLowerCase();
+        const aExact = haystackA === term.toLowerCase() || urnA === normalizedDirectTerm;
+        const bExact = haystackB === term.toLowerCase() || urnB === normalizedDirectTerm;
         if (aExact !== bExact) return aExact ? -1 : 1;
         return (b.year || 0) - (a.year || 0);
       })
@@ -246,9 +300,20 @@ export const Omnibox: React.FC<OmniboxProps> = ({ onSelectPlace }) => {
                     <strong>{book.title || 'Uten tittel'}</strong>
                     <small>
                       {book.author || 'Ukjent'} {book.year ? `(${book.year})` : ''}
+                      {book.urn ? ` · ${book.urn.replace('URN:NBN:no-nb_digibok_', '')}` : ''}
                     </small>
                   </div>
-                  <button onClick={() => addBookToCorpus(book.dhlabid)}>Legg til korpus</button>
+                  <div className="omnibox-actions">
+                    <a
+                      className="omnibox-link-button"
+                      href={toNbItemUrl(book.urn)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Åpne bok
+                    </a>
+                    <button onClick={() => addBookToCorpus(book.dhlabid)}>Legg til korpus</button>
+                  </div>
                 </div>
               ))}
             </section>

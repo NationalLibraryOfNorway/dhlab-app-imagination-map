@@ -122,6 +122,27 @@
   white-space: nowrap;
 }
 
+.omnibox-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.omnibox-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: rgba(15, 23, 42, 0.08);
+  color: #0f172a;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
 .omnibox-empty {
   color: #64748b;
   font-size: 0.82rem;
