@@ -39,7 +39,7 @@ interface ComparePlacePoint {
 const MAP_MARKER_LIMIT = 1800;
 const normalizeTemporalPlaceId = (placeId: string): string => placeId.trim().toLowerCase();
 const normalizeIncomingPlaceId = (row: any): string =>
-    String(row?.mock_id ?? row?.place_id ?? row?.placeId ?? row?.id ?? row?.nb_place_id ?? '').toLowerCase().trim();
+    String(row?.id ?? row?.place_id ?? row?.placeId ?? row?.mock_id ?? row?.nb_place_id ?? '').toLowerCase().trim();
 
 const toFiniteNumber = (value: unknown): number | null => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : null;

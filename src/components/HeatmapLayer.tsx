@@ -16,7 +16,7 @@ const normalizePlaces = (rows: any[]): any[] =>
   (rows || [])
     .map((row) => ({
       ...row,
-      id: row?.mock_id ?? row?.place_id ?? row?.placeId ?? row?.id ?? row?.nb_place_id,
+      id: row?.id ?? row?.place_id ?? row?.placeId ?? row?.mock_id ?? row?.nb_place_id,
       token: row?.token ?? row?.historical_name ?? row?.name,
       name: row?.name ?? row?.modern_name ?? row?.token ?? null,
       lat: Number(row?.lat ?? row?.latitude),

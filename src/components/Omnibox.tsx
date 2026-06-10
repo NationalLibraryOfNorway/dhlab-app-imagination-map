@@ -26,7 +26,7 @@ interface ResolvedPlaceMatch {
 }
 
 function getResolvedPlaceId(place: ResolvedPlaceMatch): string {
-  return String(place.mock_id ?? place.place_id ?? place.id ?? '').trim();
+  return String(place.id ?? place.place_id ?? place.mock_id ?? '').trim();
 }
 
 function tokenize(text: string): string[] {

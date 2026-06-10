@@ -115,7 +115,7 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
     (rows || [])
       .map((row) => ({
         ...row,
-        id: String(row?.mock_id ?? row?.place_id ?? row?.placeId ?? row?.id ?? row?.nb_place_id ?? ''),
+        id: String(row?.id ?? row?.place_id ?? row?.placeId ?? row?.mock_id ?? row?.nb_place_id ?? ''),
         token: String(row?.token ?? row?.historical_name ?? row?.name ?? '').trim(),
         name: row?.name ?? row?.modern_name ?? row?.token ?? null,
         lat: Number(row?.lat ?? row?.latitude),
