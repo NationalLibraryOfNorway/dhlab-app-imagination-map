@@ -3,7 +3,7 @@ import { useCorpus } from '../context/CorpusContext';
 import './Omnibox.css';
 
 interface OmniboxProps {
-  onSelectPlace: (place: { token: string; placeId?: string; name?: string | null; lat?: number | null; lon?: number | null }) => void;
+  onSelectPlace: (place: { token: string; placeId?: string; nbPlaceId?: number | null; name?: string | null; lat?: number | null; lon?: number | null }) => void;
 }
 
 interface AuthorMatch {
@@ -276,6 +276,7 @@ export const Omnibox: React.FC<OmniboxProps> = ({ onSelectPlace }) => {
                         onSelectPlace({
                           token: place.matchedForm || place.canonicalName,
                           placeId: resolvedPlaceId,
+                          nbPlaceId: placeInActiveCorpus?.nbPlaceId ?? null,
                           name: place.canonicalName || null,
                           lat: place.lat ?? null,
                           lon: place.lon ?? null

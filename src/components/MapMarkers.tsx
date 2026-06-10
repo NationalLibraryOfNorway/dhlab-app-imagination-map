@@ -6,7 +6,7 @@ import { fetchFirstYearByTokenForCorpus } from '../utils/temporal';
 import type { GeoSequenceRow } from '../utils/geoApi';
 
 interface MapMarkersProps {
-    onSelectPlace: (place: { token: string; placeId?: string }) => void;
+    onSelectPlace: (place: { token: string; placeId?: string; nbPlaceId?: number | null }) => void;
     bookSequence?: {
         rows: GeoSequenceRow[];
         dimOthers: boolean;
@@ -24,6 +24,7 @@ interface MapMarkersProps {
 
 interface ComparePlacePoint {
     id: string;
+    nbPlaceId?: number | null;
     token: string;
     name: string | null;
     lat: number;
@@ -175,6 +176,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSeque
                     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
                     const current = merged.get(placeId) || {
                         id: placeId,
+                        nbPlaceId: Number.isFinite(Number(row?.nb_place_id)) ? Number(row?.nb_place_id) : null,
                         token: String(row?.token ?? row?.historical_name ?? row?.name ?? ''),
                         name: row?.name ?? row?.modern_name ?? row?.token ?? null,
                         lat,
@@ -278,7 +280,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSeque
                         pathOptions={{ color, fillColor: fill, fillOpacity: 0.72, weight: 1.8 }}
                         eventHandlers={{
                             click: () => {
-                                onSelectPlace({ token: place.token, placeId: place.id });
+                                onSelectPlace({ token: place.token, placeId: place.id, nbPlaceId: place.nbPlaceId ?? null });
                                 map.panTo([place.lat, place.lon]);
                             }
                         }}
@@ -450,7 +452,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSeque
                             if (isAnyFocused) e.target.bringToFront();
                         },
                         click: () => {
-                            onSelectPlace({ token: place.token, placeId: place.id });
+                            onSelectPlace({ token: place.token, placeId: place.id, nbPlaceId: place.nbPlaceId ?? null });
                             map.panTo([place.lat, place.lon]);
                         }
                     }}

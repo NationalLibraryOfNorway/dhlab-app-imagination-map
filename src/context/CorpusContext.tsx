@@ -14,6 +14,7 @@ export interface BookMetadata {
 
 export interface PlacePoint {
     id: string;
+    nbPlaceId?: number | null;
     token: string;
     name: string | null;
     lat: number;
@@ -35,6 +36,7 @@ const toNumber = (value: unknown): number | null => {
 
 const toPlacePoint = (row: any): PlacePoint | null => {
   const idRaw = row?.id ?? row?.place_id ?? row?.placeId ?? row?.mock_id ?? row?.nb_place_id;
+  const nbPlaceId = toNumber(row?.nb_place_id);
   const tokenRaw = row?.token ?? row?.historical_name ?? row?.name ?? row?.modern_name;
   const nameRaw = row?.name ?? row?.modern_name ?? row?.canonical_name ?? row?.token;
   const lat = toNumber(row?.lat ?? row?.latitude);
@@ -51,6 +53,7 @@ const toPlacePoint = (row: any): PlacePoint | null => {
 
   return {
     id,
+    nbPlaceId,
     token,
     name: nameRaw ? String(nameRaw) : null,
     lat,

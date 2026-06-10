@@ -14,7 +14,7 @@ interface EntityInspectorPanelProps {
   isMinimized?: boolean;
   onMinimize?: () => void;
   onClose: () => void;
-  onSelectPlace: (place: { token: string; placeId?: string }) => void;
+  onSelectPlace: (place: { token: string; placeId?: string; nbPlaceId?: number | null }) => void;
 }
 
 interface AuthorStat {
@@ -116,6 +116,7 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
       .map((row) => ({
         ...row,
         id: String(row?.id ?? row?.place_id ?? row?.placeId ?? row?.mock_id ?? row?.nb_place_id ?? ''),
+        nbPlaceId: Number.isFinite(Number(row?.nb_place_id)) ? Number(row?.nb_place_id) : null,
         token: String(row?.token ?? row?.historical_name ?? row?.name ?? '').trim(),
         name: row?.name ?? row?.modern_name ?? row?.token ?? null,
         lat: Number(row?.lat ?? row?.latitude),
@@ -672,7 +673,7 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
                         className="entity-row-action"
                         onClick={() => {
                           setSelectedKey(place.token);
-                          onSelectPlace({ token: place.token, placeId: place.id });
+                          onSelectPlace({ token: place.token, placeId: place.id, nbPlaceId: place.nbPlaceId ?? null });
                         }}
                       >
                         Vis
@@ -744,7 +745,14 @@ export const EntityInspectorPanel: React.FC<EntityInspectorPanelProps> = ({
             {mode === 'places' && selectedKey && (
               <button
                 className="entity-action"
-                onClick={() => onSelectPlace({ token: selectedKey, placeId: placeSharedRows.find((p) => p.token === selectedKey)?.id })}
+                onClick={() => {
+                  const selectedPlace = placeSharedRows.find((p) => p.token === selectedKey);
+                  onSelectPlace({
+                    token: selectedKey,
+                    placeId: selectedPlace?.id,
+                    nbPlaceId: selectedPlace?.nbPlaceId ?? null,
+                  });
+                }}
               >
                 Vis i kart
               </button>

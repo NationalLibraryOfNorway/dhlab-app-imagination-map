@@ -8,6 +8,7 @@ import './PlaceSummaryCard.css';
 interface PlaceSummaryCardProps {
     token: string | null;
     placeId?: string | null;
+    nbPlaceId?: number | null;
     fallbackName?: string | null;
     fallbackLat?: number | null;
     fallbackLon?: number | null;
@@ -45,14 +46,24 @@ function highlightPlaceInFragment(fragment: string, fallbackToken: string): stri
     return fragment.replace(new RegExp(escapeRegExp(token), 'gi'), (match) => `<mark class="place-hit-mark">${match}</mark>`);
 }
 
-function buildGeoTermCandidates(placeId: string | null | undefined): string[] {
-    if (!placeId) return [];
+function buildGeoTermCandidates(placeId: string | null | undefined, nbPlaceId?: number | null): string[] {
+    const candidates: string[] = [];
+    if (Number.isFinite(nbPlaceId) && Number(nbPlaceId) > 0) {
+        candidates.push(`#geo:nb:${Math.trunc(Number(nbPlaceId))}`);
+    }
+    if (!placeId) return candidates;
     const raw = placeId.trim();
-    if (!raw) return [];
-  const strippedGeo = raw.replace(/^#?geo:/i, '');
-  const strippedNb = strippedGeo.replace(/^nb:/i, '').trim();
-  if (!/^\d+$/.test(strippedNb)) return [];
-  return [`#geo:${strippedNb}`];
+    if (!raw) return candidates;
+    const strippedGeo = raw.replace(/^#?geo:/i, '');
+    const strippedInternal = strippedGeo.replace(/^internal:/i, '').replace(/^place_id:/i, '').trim();
+    if (!/^\d+$/.test(strippedInternal)) return candidates;
+    const numericId = Number(strippedInternal);
+    if (Number.isFinite(numericId) && numericId >= 100000) {
+        candidates.push(`#geo:internal:${strippedInternal}`);
+    } else {
+        candidates.push(`#geo:nb:${strippedInternal}`);
+    }
+    return Array.from(new Set(candidates));
 }
 
 function extractHits(data: any): ConcordanceHit[] {
@@ -92,6 +103,7 @@ function uniqueHits(hits: ConcordanceHit[]): ConcordanceHit[] {
 export const PlaceSummaryCard: React.FC<PlaceSummaryCardProps> = ({
     token,
     placeId,
+    nbPlaceId,
     fallbackName,
     fallbackLat,
     fallbackLon,
@@ -121,6 +133,7 @@ export const PlaceSummaryCard: React.FC<PlaceSummaryCardProps> = ({
         if (typeof fallbackLat === 'number' && typeof fallbackLon === 'number') {
             return {
                 id: String(placeId || ''),
+                nbPlaceId: nbPlaceId ?? null,
                 token,
                 name: fallbackName || null,
                 lat: fallbackLat,
@@ -130,8 +143,9 @@ export const PlaceSummaryCard: React.FC<PlaceSummaryCardProps> = ({
             };
         }
         return null;
-    }, [token, placeId, places, fallbackName, fallbackLat, fallbackLon]);
+    }, [token, placeId, nbPlaceId, places, fallbackName, fallbackLat, fallbackLon]);
     const effectivePlaceId = placeId || selectedPlace?.id;
+    const effectiveNbPlaceId = nbPlaceId ?? selectedPlace?.nbPlaceId ?? null;
     const sortedBooks = useMemo(
         () => [...books].sort((a, b) => b.mentions - a.mentions),
         [books]
@@ -181,7 +195,7 @@ export const PlaceSummaryCard: React.FC<PlaceSummaryCardProps> = ({
         let cancelled = false;
         const run = async () => {
             const fetchBooksFromGeo = async (): Promise<PlaceBookDetail[]> => {
-                const geoTerms = buildGeoTermCandidates(effectivePlaceId);
+                const geoTerms = buildGeoTermCandidates(effectivePlaceId, effectiveNbPlaceId);
                 if (geoTerms.length === 0) return [];
                 for (const geoTerm of geoTerms) {
                     try {
@@ -262,7 +276,7 @@ export const PlaceSummaryCard: React.FC<PlaceSummaryCardProps> = ({
         return () => {
             cancelled = true;
         };
-    }, [token, effectivePlaceId, selectedPlace, activeDhlabids, metadataById, API_URL]);
+    }, [token, effectivePlaceId, effectiveNbPlaceId, selectedPlace, activeDhlabids, metadataById, API_URL]);
 
     useEffect(() => {
         const onPointerDown = (event: MouseEvent) => {
@@ -278,7 +292,7 @@ export const PlaceSummaryCard: React.FC<PlaceSummaryCardProps> = ({
     const fetchBookConcordance = async (bookId: number) => {
         if (!token) return;
         const resolveHits = async (): Promise<ConcordanceHit[]> => {
-            const geoTerms = buildGeoTermCandidates(effectivePlaceId);
+            const geoTerms = buildGeoTermCandidates(effectivePlaceId, effectiveNbPlaceId);
             let hits: ConcordanceHit[] = [];
             if (geoTerms.length > 0) {
                 for (const geoTerm of geoTerms) {
@@ -315,7 +329,7 @@ export const PlaceSummaryCard: React.FC<PlaceSummaryCardProps> = ({
             return hits;
         };
 
-        const cacheKey = `${token}::${effectivePlaceId || ''}::${bookId}`;
+        const cacheKey = `${token}::${effectivePlaceId || ''}::${effectiveNbPlaceId || ''}::${bookId}`;
         const cached = concordanceCacheRef.current.get(cacheKey);
         if (cached) {
             setBookConcordances((prev) => ({ ...prev, [bookId]: cached }));

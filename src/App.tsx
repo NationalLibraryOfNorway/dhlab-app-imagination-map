@@ -27,6 +27,7 @@ import './index.css'
 interface SelectedPlace {
   token: string;
   placeId?: string;
+  nbPlaceId?: number | null;
   name?: string | null;
   lat?: number | null;
   lon?: number | null;
@@ -511,6 +512,7 @@ function App() {
         <PlaceSummaryCard
           token={selectedPlace?.token || null}
           placeId={selectedPlace?.placeId}
+            nbPlaceId={selectedPlace?.nbPlaceId}
           fallbackName={selectedPlace?.name}
           fallbackLat={selectedPlace?.lat}
           fallbackLon={selectedPlace?.lon}
