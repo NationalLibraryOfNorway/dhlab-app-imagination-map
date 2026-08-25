@@ -209,6 +209,23 @@ export const CorpusBuilderCard: React.FC<CorpusBuilderCardProps> = ({
             }
             return null;
         };
+        const normalizeUrn = (value: unknown): string => {
+            if (typeof value !== 'string') return '';
+            let normalized = value.trim();
+            if (!normalized) return '';
+            try {
+                const url = new URL(normalized);
+                if (url.hostname === 'urn.nb.no') {
+                    normalized = decodeURIComponent(url.pathname.replace(/^\/+/, ''));
+                } else if (url.hostname === 'www.nb.no' || url.hostname === 'nb.no') {
+                    const itemsMatch = decodeURIComponent(url.pathname).match(/\/items\/(.+)$/);
+                    if (itemsMatch) normalized = itemsMatch[1];
+                }
+            } catch {
+                // Plain URN values are expected and need no URL parsing.
+            }
+            return normalized.trim().replace(/\/+$/, '').toLowerCase();
+        };
         const file = e.target.files?.[0];
         if (!file) return;
         const reader = new FileReader();
@@ -221,8 +238,14 @@ export const CorpusBuilderCard: React.FC<CorpusBuilderCardProps> = ({
                     'bookid',
                     'bokid'
                 ]);
+                const urnKeys = new Set(['urn']);
+                const bookIdByUrn = new Map(
+                    allBooks
+                        .map((book) => [normalizeUrn(book.urn), book.dhlabid] as const)
+                        .filter(([urn]) => urn.length > 0)
+                );
 
-                // Scan all sheets, so Geo-konk workbooks can be imported directly.
+                // XLSX also parses CSV input. Scan all sheets so exported workbooks can be imported directly.
                 const idsSet = new Set<number>();
                 workbook.SheetNames.forEach((sheetName) => {
                     const worksheet = workbook.Sheets[sheetName];
@@ -230,9 +253,16 @@ export const CorpusBuilderCard: React.FC<CorpusBuilderCardProps> = ({
                     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, { defval: null });
                     rows.forEach((row) => {
                         Object.entries(row).forEach(([rawKey, rawValue]) => {
-                            if (!candidateKeys.has(normalizeKey(rawKey))) return;
-                            const id = parseIdValue(rawValue);
-                            if (id !== null) idsSet.add(id);
+                            const key = normalizeKey(rawKey);
+                            if (candidateKeys.has(key)) {
+                                const id = parseIdValue(rawValue);
+                                if (id !== null) idsSet.add(id);
+                                return;
+                            }
+                            if (urnKeys.has(key)) {
+                                const id = bookIdByUrn.get(normalizeUrn(rawValue));
+                                if (id !== undefined) idsSet.add(id);
+                            }
                         });
                     });
                 });
@@ -241,12 +271,12 @@ export const CorpusBuilderCard: React.FC<CorpusBuilderCardProps> = ({
                 if (ids.length > 0) {
                     setActiveDhlabids(ids);
                 } else {
-                    console.warn("Fant ingen dhlabid/bookId-kolonne i opplastet Excel-fil.");
-                    alert("Fant ingen dhlabid i Excel-filen. Forventet kolonner som dhlabid eller bookId.");
+                    console.warn("Fant ingen gyldige dhlabid/bookId/urn-verdier i opplastet fil.");
+                    alert("Fant ingen bøker i filen. Forventet en kolonne som dhlabid, bookId eller urn.");
                 }
             } catch (err) {
-                console.error("Invalid Excel corpus", err);
-                alert("Klarte ikke å lese Excel-filen.");
+                console.error("Invalid corpus file", err);
+                alert("Klarte ikke å lese filen. Bruk Excel- eller CSV-format.");
             } finally {
                 // Allow re-importing the same file without changing filename.
                 inputEl.value = '';
@@ -413,9 +443,9 @@ export const CorpusBuilderCard: React.FC<CorpusBuilderCardProps> = ({
                     </div>
 
                     <div className="action-row mt-3 pt-3" style={{ borderTop: '1px solid var(--glass-border)' }}>
-                        <label className="btn-op outline flex-grow-1" style={{ fontSize: '0.8rem', cursor: 'pointer', textAlign: 'center', padding: '6px' }} title="Last opp regneark for modifisering">
+                        <label className="btn-op outline flex-grow-1" style={{ fontSize: '0.8rem', cursor: 'pointer', textAlign: 'center', padding: '6px' }} title="Last opp Excel- eller CSV-fil med dhlabid, bookId eller urn">
                             <i className="fas fa-file-upload"></i> Import
-                            <input type="file" accept=".xlsx, .xls" style={{ display: 'none' }} onChange={importCorpus} />
+                            <input type="file" accept=".xlsx,.xls,.csv,text/csv" style={{ display: 'none' }} onChange={importCorpus} />
                         </label>
                     </div>
             </div>
