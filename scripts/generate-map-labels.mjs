@@ -67,6 +67,38 @@ const marinePositionOverrides = new Map([
   ['Q98:1', { lat: -27, lon: -140 }],
   ['Q164466:0', { lat: -76, lon: 175 }]
 ]);
+const supplementalMarineLabels = [
+  {
+    id: 'supplemental-north-sea',
+    nameEn: 'North Sea',
+    nameNo: 'Nordsjøen',
+    lat: 56.3,
+    lon: 3.2,
+    minZoom: 4,
+    maxZoom: 10,
+    rank: 3
+  },
+  {
+    id: 'supplemental-skagerrak',
+    nameEn: 'Skagerrak',
+    nameNo: 'Skagerrak',
+    lat: 58,
+    lon: 8.5,
+    minZoom: 6,
+    maxZoom: 11,
+    rank: 4
+  },
+  {
+    id: 'supplemental-barents-sea',
+    nameEn: 'Barents Sea',
+    nameNo: 'Barentshavet',
+    lat: 74.5,
+    lon: 38,
+    minZoom: 3,
+    maxZoom: 9,
+    rank: 3
+  }
+];
 const countryCodeOverrides = new Map([
   ['NOR', 'NO'],
   ['FRA', 'FR'],
@@ -129,6 +161,7 @@ const marine = marineData.features
       rank: finiteNumber(properties.scalerank, 9)
     };
   })
+  .concat(supplementalMarineLabels)
   .sort((a, b) => a.rank - b.rank || a.nameEn.localeCompare(b.nameEn));
 
 const generated = {

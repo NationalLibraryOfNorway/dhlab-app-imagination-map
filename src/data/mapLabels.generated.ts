@@ -1886,6 +1886,36 @@ export const mapLabelData = {
       "minZoom": 2,
       "maxZoom": 8,
       "rank": 1
+    },
+    {
+      "id": "supplemental-barents-sea",
+      "nameEn": "Barents Sea",
+      "nameNo": "Barentshavet",
+      "lat": 74.5,
+      "lon": 38,
+      "minZoom": 3,
+      "maxZoom": 9,
+      "rank": 3
+    },
+    {
+      "id": "supplemental-north-sea",
+      "nameEn": "North Sea",
+      "nameNo": "Nordsjøen",
+      "lat": 56.3,
+      "lon": 3.2,
+      "minZoom": 4,
+      "maxZoom": 10,
+      "rank": 3
+    },
+    {
+      "id": "supplemental-skagerrak",
+      "nameEn": "Skagerrak",
+      "nameNo": "Skagerrak",
+      "lat": 58,
+      "lon": 8.5,
+      "minZoom": 6,
+      "maxZoom": 11,
+      "rank": 4
     }
   ]
 } as const;
