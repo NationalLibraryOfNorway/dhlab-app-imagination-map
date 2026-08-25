@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
+import type { MapLabelLanguage, MapLabelMode } from '../types/mapLabels';
 
 export interface BookMetadata {
   dhlabid: number;
@@ -125,6 +126,10 @@ interface CorpusContextType {
   isPlacesLoading: boolean;
   mapVisualMode: 'map' | 'heatmap' | 'heatmap-all';
   setMapVisualMode: (mode: 'map' | 'heatmap' | 'heatmap-all') => void;
+  mapLabelLanguage: MapLabelLanguage;
+  setMapLabelLanguage: (language: MapLabelLanguage) => void;
+  mapLabelMode: MapLabelMode;
+  setMapLabelMode: (mode: MapLabelMode) => void;
   downlightColorMode: 'red' | 'blue';
   setDownlightColorMode: (mode: 'red' | 'blue') => void;
   downlightPercentile: number;
@@ -175,6 +180,8 @@ export const CorpusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [totalPlaces, setTotalPlaces] = useState<number>(0);
   const [isPlacesLoading, setIsPlacesLoading] = useState(false);
   const [mapVisualMode, setMapVisualMode] = useState<'map' | 'heatmap' | 'heatmap-all'>('map');
+  const [mapLabelLanguage, setMapLabelLanguage] = useState<MapLabelLanguage>('no');
+  const [mapLabelMode, setMapLabelMode] = useState<MapLabelMode>('countries');
   const [downlightColorMode, setDownlightColorMode] = useState<'red' | 'blue'>('blue');
   const [downlightPercentile, setDownlightPercentile] = useState<number>(0);
   const [lowFreqGreenStrength, setLowFreqGreenStrength] = useState<number>(0);
@@ -422,6 +429,10 @@ export const CorpusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       isPlacesLoading,
       mapVisualMode,
       setMapVisualMode,
+      mapLabelLanguage,
+      setMapLabelLanguage,
+      mapLabelMode,
+      setMapLabelMode,
       downlightColorMode,
       setDownlightColorMode,
       downlightPercentile,

@@ -78,6 +78,15 @@
   color: #1d4ed8;
 }
 
+.visuals-toggle:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.visuals-label-language-row {
+  margin-top: 8px;
+}
+
 .visuals-export-row {
   display: flex;
   gap: 8px;

@@ -15,6 +15,10 @@ export const VisualsCard: React.FC = () => {
     setActiveWindow,
     mapVisualMode,
     setMapVisualMode,
+    mapLabelLanguage,
+    setMapLabelLanguage,
+    mapLabelMode,
+    setMapLabelMode,
     downlightColorMode,
     setDownlightColorMode,
     downlightPercentile,
@@ -135,6 +139,46 @@ export const VisualsCard: React.FC = () => {
               onClick={() => setMapVisualMode('heatmap-all')}
             >
               Heatmap (alle)
+            </button>
+          </div>
+        </div>
+
+        <div className="visuals-section">
+          <label>Kartetiketter</label>
+          <div className="visuals-toggle-row">
+            <button
+              className={`visuals-toggle ${mapLabelMode === 'none' ? 'active' : ''}`}
+              onClick={() => setMapLabelMode('none')}
+            >
+              Ingen navn
+            </button>
+            <button
+              className={`visuals-toggle ${mapLabelMode === 'countries' ? 'active' : ''}`}
+              onClick={() => setMapLabelMode('countries')}
+            >
+              Land
+            </button>
+            <button
+              className={`visuals-toggle ${mapLabelMode === 'countries-marine' ? 'active' : ''}`}
+              onClick={() => setMapLabelMode('countries-marine')}
+            >
+              Land + hav
+            </button>
+          </div>
+          <div className="visuals-toggle-row visuals-label-language-row">
+            <button
+              className={`visuals-toggle ${mapLabelLanguage === 'no' ? 'active' : ''}`}
+              onClick={() => setMapLabelLanguage('no')}
+              disabled={mapLabelMode === 'none'}
+            >
+              Norsk
+            </button>
+            <button
+              className={`visuals-toggle ${mapLabelLanguage === 'en' ? 'active' : ''}`}
+              onClick={() => setMapLabelLanguage('en')}
+              disabled={mapLabelMode === 'none'}
+            >
+              English
             </button>
           </div>
         </div>

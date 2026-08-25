@@ -4,6 +4,8 @@ import { StatsHUD } from './components/StatsHUD'
 import { CorpusBuilderCard } from './components/CorpusBuilderCard'
 import { MapMarkers } from './components/MapMarkers'
 import { HeatmapLayer } from './components/HeatmapLayer'
+import { MapLabelsLayer } from './components/MapLabelsLayer'
+import { OpenFreeMapLayer } from './components/OpenFreeMapLayer'
 import { SelectedPlaceOverlay } from './components/SelectedPlaceOverlay'
 import { PlaceSummaryCard } from './components/PlaceSummaryCard'
 import { CorpusBrowseTable } from './components/CorpusBrowseTable'
@@ -22,6 +24,7 @@ import { GeoConcordanceCard } from './components/GeoConcordanceCard'
 import { BookSequenceCard } from './components/BookSequenceCard'
 import { useCorpus } from './context/CorpusContext'
 import type { GeoSequenceRow } from './utils/geoApi'
+import { basemapConfig } from './config/basemap'
 import './index.css'
 
 interface SelectedPlace {
@@ -58,6 +61,8 @@ function App() {
     isGeoConcordanceOpen,
     setMapVisualMode,
     mapVisualMode,
+    mapLabelLanguage,
+    mapLabelMode,
     activeWindow,
     setActiveWindow,
     selectedPlaceKindFilter
@@ -146,10 +151,17 @@ function App() {
     <div className="app-shell">
       {/* Map layer */}
       <MapContainer center={[60.472, 8.468]} zoom={6} className="map-container" zoomControl={false}>
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        {basemapConfig.provider === 'openfreemap' ? (
+          <OpenFreeMapLayer styleUrl={basemapConfig.openFreeMapStyleUrl} />
+        ) : (
+          <TileLayer
+            attribution={basemapConfig.attribution}
+            url={basemapConfig.url}
+            maxZoom={basemapConfig.maxZoom}
+            crossOrigin="anonymous"
+          />
+        )}
+        <MapLabelsLayer language={mapLabelLanguage} mode={mapLabelMode} />
         {mapVisualMode === 'heatmap' || mapVisualMode === 'heatmap-all' ? (
           <HeatmapLayer useFullDataset={mapVisualMode === 'heatmap-all'} />
         ) : (

@@ -18,6 +18,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      VITE_OPENFREEMAP_STYLE_URL: ${{ vars.VITE_OPENFREEMAP_STYLE_URL }}
+      VITE_BASEMAP_URL: ${{ vars.VITE_BASEMAP_URL }}
+      VITE_BASEMAP_ATTRIBUTION: ${{ vars.VITE_BASEMAP_ATTRIBUTION }}
+      VITE_BASEMAP_MAX_ZOOM: ${{ vars.VITE_BASEMAP_MAX_ZOOM }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
