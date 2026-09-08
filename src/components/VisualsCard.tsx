@@ -4,10 +4,18 @@ import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import html2canvas from 'html2canvas';
 import { useCorpus } from '../context/CorpusContext';
+import { downloadCsv } from '../utils/download';
+import { preparePlaceCsvExport } from '../utils/placeCsvExport';
 import { useWindowLayout } from '../utils/windowLayout';
 import './VisualsCard.css';
 
-export const VisualsCard: React.FC = () => {
+interface VisualsCardProps {
+  visibleMapPlaceIds: string[];
+}
+
+type PlaceExportScope = 'complete' | 'visible';
+
+export const VisualsCard: React.FC<VisualsCardProps> = ({ visibleMapPlaceIds }) => {
   const {
     isVisualsOpen,
     setIsVisualsOpen,
@@ -29,9 +37,21 @@ export const VisualsCard: React.FC = () => {
     setMarkerSizeScale,
     heatmapStrength,
     setHeatmapStrength,
-    compareSegmentsEnabled
+    compareSegmentsEnabled,
+    activeDhlabids,
+    activeBooksMetadata,
+    places,
+    totalPlaces,
+    isPlacesLoading,
+    API_URL,
+    temporalEnabled,
+    temporalCutoffYear,
+    temporalMode,
+    selectedPlaceKindFilter
   } = useCorpus();
   const [isExporting, setIsExporting] = useState(false);
+  const [placeExportScope, setPlaceExportScope] = useState<PlaceExportScope | null>(null);
+  const [placeExportError, setPlaceExportError] = useState<string | null>(null);
 
   const wait = (ms: number) => new Promise((resolve) => {
     window.setTimeout(resolve, ms);
@@ -73,6 +93,35 @@ export const VisualsCard: React.FC = () => {
         setMapVisualMode(previousMode);
       }
       setIsExporting(false);
+    }
+  };
+
+  const downloadPlaceData = async (scope: PlaceExportScope) => {
+    if (placeExportScope) return;
+    setPlaceExportScope(scope);
+    setPlaceExportError(null);
+    try {
+      const prepared = await preparePlaceCsvExport({
+        apiUrl: API_URL,
+        activeDhlabids,
+        activeBooksMetadata,
+        places,
+        totalPlaces,
+        selectedPlaceKindFilter,
+        temporalEnabled,
+        temporalCutoffYear,
+        temporalMode,
+        scope,
+        visiblePlaceIds: scope === 'visible' ? visibleMapPlaceIds : undefined
+      });
+      downloadCsv(prepared.filename, prepared.headers, prepared.rows, { includeBom: false });
+    } catch (error) {
+      console.error(error);
+      setPlaceExportError(
+        error instanceof Error ? error.message : 'Kunne ikke lage CSV med stedsdata.'
+      );
+    } finally {
+      setPlaceExportScope(null);
     }
   };
 
@@ -291,6 +340,54 @@ export const VisualsCard: React.FC = () => {
               <i className="fas fa-download"></i> Heatmap (alle)
             </button>
           </div>
+        </div>
+
+        <div className="visuals-section">
+          <label>Nedlasting av stedsdata</label>
+          <div className="visuals-export-row">
+            <button
+              className="visuals-toggle"
+              onClick={() => downloadPlaceData('complete')}
+              disabled={
+                activeDhlabids.length === 0
+                || compareSegmentsEnabled
+                || isPlacesLoading
+                || placeExportScope !== null
+              }
+            >
+              <i className="fas fa-file-csv"></i>{' '}
+              {placeExportScope === 'complete' ? 'Henter alle steder…' : 'Alle steder (CSV)'}
+            </button>
+            <button
+              className="visuals-toggle"
+              onClick={() => downloadPlaceData('visible')}
+              disabled={
+                activeDhlabids.length === 0
+                || compareSegmentsEnabled
+                || isPlacesLoading
+                || mapVisualMode !== 'map'
+                || visibleMapPlaceIds.length === 0
+                || placeExportScope !== null
+              }
+            >
+              <i className="fas fa-crop-alt"></i>{' '}
+              {placeExportScope === 'visible' ? 'Lager kartutsnitt…' : 'Synlig kartutsnitt (CSV)'}
+            </button>
+          </div>
+          <small className="visuals-help">
+            Full CSV følger korpusfiltrene. Kartutsnitt-CSV følger også viewport,
+            markørgrense, stedskonkordans og bokforløpsfokus. Koordinater er WGS84.
+          </small>
+          {compareSegmentsEnabled && (
+            <small className="visuals-help">
+              CSV-eksport er ikke tilgjengelig under A/B-sammenligning.
+            </small>
+          )}
+          {placeExportError && (
+            <small className="visuals-help visuals-help-error">
+              {placeExportError}
+            </small>
+          )}
         </div>
       </div>
     </Rnd>

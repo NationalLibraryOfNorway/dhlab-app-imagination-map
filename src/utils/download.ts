@@ -1,4 +1,13 @@
-export function downloadCsv(filename: string, headers: string[], rows: Array<Array<string | number | null | undefined>>) {
+interface DownloadCsvOptions {
+  includeBom?: boolean;
+}
+
+export function downloadCsv(
+  filename: string,
+  headers: string[],
+  rows: Array<Array<string | number | null | undefined>>,
+  options: DownloadCsvOptions = {}
+) {
   const escapeCell = (value: string | number | null | undefined) => {
     const text = value === null || value === undefined ? '' : String(value);
     const escaped = text.replace(/"/g, '""');
@@ -10,7 +19,7 @@ export function downloadCsv(filename: string, headers: string[], rows: Array<Arr
     ...rows.map((row) => row.map(escapeCell).join(','))
   ];
 
-  const bom = '\uFEFF';
+  const bom = options.includeBom === false ? '' : '\uFEFF';
   const blob = new Blob([bom + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

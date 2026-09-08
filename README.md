@@ -43,6 +43,31 @@ Land- og havetikettene er en kompakt, generert fil basert på Natural Earth
 (CC0), ISO-landkoder og norske marine navn fra Wikidata. Oppdater filen med
 `npm run generate:map-labels`.
 
+### CSV-eksport av stedsdata
+
+Visuals-panelet tilbyr to Python- og regnearkvennlige CSV-filer:
+
+- **Alle steder** henter hele det aktive korpuset og følger stedstype- og
+  tidsfilter.
+- **Synlig kartutsnitt** tar bare markørene som faktisk vises i viewporten, og
+  følger i tillegg markørgrensen, stedskonkordans og bokforløpsfokus.
+
+Kartutsnitt-eksporten er tilgjengelig i vanlig kartmodus, ikke i heatmap eller
+A/B-sammenligning. Koordinatene er WGS84-desimalgrader. Filene bruker UTF-8
+uten BOM, slik at første kolonnenavn leses rent av Python og andre dataverktøy.
+
+CSV-kolonnene er:
+
+- `place_id`, `nb_place_id`
+- `historical_name`, `modern_name`
+- `latitude`, `longitude`
+- `mentions`, `book_count`
+- `kind`, `feature_code`, `first_year`
+
+Filen kan for eksempel bearbeides med pandas eller R. En redigert stedsfil kan
+foreløpig ikke lastes tilbake i appen; kolonnenavnene er valgt med tanke på en
+senere importfunksjon.
+
 ## Samarbeid og AI-medutvikler
 For trygg samhandling i repoet anbefales denne oppsettet:
 - **Tilganger:** Gi `Write`-tilgang til medutviklere og eventuelle bot-/service-kontoer som skal opprette brancher/PR.

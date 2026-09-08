@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { MapContainer, TileLayer } from 'react-leaflet'
 import { StatsHUD } from './components/StatsHUD'
 import { CorpusBuilderCard } from './components/CorpusBuilderCard'
@@ -84,6 +84,7 @@ function App() {
   const [geoFocusPlaceIds, setGeoFocusPlaceIds] = useState<string[]>([]);
   const [geoFocusDimOthers, setGeoFocusDimOthers] = useState(true);
   const [geoFocusStyle, setGeoFocusStyle] = useState<'fill' | 'ring'>('ring');
+  const [visibleMapPlaceIds, setVisibleMapPlaceIds] = useState<string[]>([]);
   const [isPlaceStatsOpen, setIsPlaceStatsOpen] = useState(false);
   const [isPlaceQaOpen, setIsPlaceQaOpen] = useState(false);
   const [isSegmentViewOpen, setIsSegmentViewOpen] = useState(false);
@@ -116,6 +117,15 @@ function App() {
     setSequenceProgressPct(0);
     if (activeWindow === 'bookSequence') setActiveWindow(null);
   };
+
+  const updateVisibleMapPlaceIds = useCallback((placeIds: string[]) => {
+    setVisibleMapPlaceIds((current) => (
+      current.length === placeIds.length
+      && current.every((placeId, index) => placeId === placeIds[index])
+        ? current
+        : placeIds
+    ));
+  }, []);
 
   const minimizedWindowItems: MinimizedWindowItem[] = [
     isCorpusBuilderOpen && isMinimized('builder')
@@ -166,6 +176,7 @@ function App() {
           <HeatmapLayer useFullDataset={mapVisualMode === 'heatmap-all'} />
         ) : (
           <MapMarkers
+            onVisiblePlaceIdsChange={updateVisibleMapPlaceIds}
             onSelectPlace={(place) => {
               setSelectedPlace(place);
               setActiveWindow('summary');
@@ -360,7 +371,7 @@ function App() {
             if (activeWindow === 'builder') setActiveWindow(null);
           }}
         />
-        <VisualsCard />
+        <VisualsCard visibleMapPlaceIds={visibleMapPlaceIds} />
         <SegmentViewCard
           isOpen={isSegmentViewOpen}
           onClose={() => {

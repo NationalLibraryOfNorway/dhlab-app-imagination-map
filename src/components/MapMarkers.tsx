@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet';
+import { CircleMarker, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { useCorpus } from '../context/CorpusContext';
 import { mixHex } from '../utils/colors';
 import { fetchFirstYearByTokenForCorpus } from '../utils/temporal';
@@ -7,6 +7,7 @@ import type { GeoSequenceRow } from '../utils/geoApi';
 
 interface MapMarkersProps {
     onSelectPlace: (place: { token: string; placeId?: string; nbPlaceId?: number | null }) => void;
+    onVisiblePlaceIdsChange?: (placeIds: string[]) => void;
     bookSequence?: {
         rows: GeoSequenceRow[];
         dimOthers: boolean;
@@ -101,7 +102,12 @@ const filterByShortSteps = (rows: GeoSequenceRow[], maxStepKm: number): GeoSeque
     return filtered;
 };
 
-export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSequence, geoFocus }) => {
+export const MapMarkers: React.FC<MapMarkersProps> = ({
+    onSelectPlace,
+    onVisiblePlaceIdsChange,
+    bookSequence,
+    geoFocus
+}) => {
     const {
         places,
         activeDhlabids,
@@ -122,6 +128,12 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSeque
         selectedPlaceKindFilter
     } = useCorpus();
     const map = useMap();
+    const [viewportBounds, setViewportBounds] = useState(() => map.getBounds());
+    useMapEvents({
+        moveend: () => setViewportBounds(map.getBounds()),
+        zoomend: () => setViewportBounds(map.getBounds()),
+        resize: () => setViewportBounds(map.getBounds())
+    });
     const [firstYearByPlaceId, setFirstYearByPlaceId] = useState<Map<string, number> | null>(null);
     const [comparePlaces, setComparePlaces] = useState<ComparePlacePoint[] | null>(null);
     const temporalMappingReady = !temporalEnabled || firstYearByPlaceId !== null;
@@ -242,6 +254,76 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({ onSelectPlace, bookSeque
             cancelled = true;
         };
     }, [temporalEnabled, activeBooksMetadata, API_URL, temporalTargetPlaceIds]);
+
+    const visiblePlaceIds = useMemo(() => {
+        if (isPlacesLoading || !temporalMappingReady || compareReady) return [];
+        const mapPlaces = [...(selectedPlaceKindFilter
+            ? places.filter((place) => place.kind === selectedPlaceKindFilter)
+            : places
+        )]
+            .sort((a, b) => b.frequency - a.frequency)
+            .slice(0, MAP_MARKER_LIMIT);
+        const rawSequenceRows = bookSequence?.rows || [];
+        const progressPct = Math.max(0, Math.min(100, Math.round(bookSequence?.progressPct || 0)));
+        const cappedLength = rawSequenceRows.length === 0
+            ? 0
+            : 1 + Math.floor((progressPct / 100) * Math.max(0, rawSequenceRows.length - 1));
+        const sequenceIds = new Set<string>();
+        const sequenceCoords = new Set<string>();
+        rawSequenceRows.slice(0, cappedLength).forEach((row) => {
+            const placeId = toFiniteNumber(row.placeId);
+            if (placeId !== null) sequenceIds.add(String(placeId));
+            const lat = toFiniteNumber(row.place?.lat);
+            const lon = toFiniteNumber(row.place?.lon);
+            if (lat !== null && lon !== null) sequenceCoords.add(toCoordKey(lat, lon));
+        });
+        const hasSequence = sequenceIds.size > 0 || sequenceCoords.size > 0;
+        const geoFocusIds = new Set((geoFocus?.placeIds || []).map((id) => String(id).toLowerCase()));
+        const hasGeoFocus = geoFocusIds.size > 0;
+        return mapPlaces
+            .filter((place) => {
+                const firstYear = firstYearByPlaceId?.get(normalizeTemporalPlaceId(place.id));
+                const isAfterOnly = temporalEnabled
+                    && temporalCutoffYear !== null
+                    && typeof firstYear === 'number'
+                    && firstYear >= temporalCutoffYear;
+                if (temporalEnabled && temporalMode === 'toggle' && isAfterOnly) return false;
+
+                const placeIdCandidates = normalizeNbPlaceIdCandidates(place.id);
+                const inBookSequence = (
+                    (hasSequence && placeIdCandidates.some((candidate) => sequenceIds.has(candidate)))
+                    || sequenceCoords.has(toCoordKey(place.lat, place.lon))
+                );
+                const inGeoFocus = hasGeoFocus
+                    && placeIdCandidates.some((candidate) => geoFocusIds.has(candidate));
+                if (hasGeoFocus && geoFocus?.dimOthers && !inGeoFocus) return false;
+                if (hasSequence && bookSequence?.dimOthers && !inBookSequence) return false;
+                return viewportBounds.contains([place.lat, place.lon]);
+            })
+            .map((place) => place.id);
+    }, [
+        places,
+        isPlacesLoading,
+        temporalMappingReady,
+        compareReady,
+        selectedPlaceKindFilter,
+        bookSequence,
+        geoFocus,
+        map,
+        temporalEnabled,
+        temporalCutoffYear,
+        temporalMode,
+        firstYearByPlaceId,
+        viewportBounds
+    ]);
+
+    useEffect(() => {
+        onVisiblePlaceIdsChange?.(visiblePlaceIds);
+    }, [onVisiblePlaceIdsChange, visiblePlaceIds]);
+    useEffect(
+        () => () => onVisiblePlaceIdsChange?.([]),
+        [onVisiblePlaceIdsChange]
+    );
 
     const renderedLayers = useMemo(() => {
         if (compareReady && !comparePlaces) {
