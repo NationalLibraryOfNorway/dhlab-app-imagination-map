@@ -15,6 +15,7 @@ For mer dybdeinformasjon, se den nye dokumentasjons-huben i `docs/`:
 - [**Prosjekt Manifest**](docs/manifest.md) – Filosofien bak data-pipelinen og de overordnede målene.
 - [**Database Modell**](docs/database_model.md) – Detaljer om SQLite-skjemaet og `json_each` mønsteret.
 - [**Legacy Dash Guide**](docs/legacy_dash.md) – Referanser til den opprinnelige Plotly/Dash prototypen (`Dash_Imagination`).
+- [**CSV-eksport av kartdata**](docs/CSV_EXPORT.md) – Format, filtre, ytelse og bruk i analyseverktøy.
 
 ## Kom i gang (Utvikling)
 1. **Installer avhengigheter:** `npm install`
