@@ -3,7 +3,7 @@ import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.heat';
 import { useCorpus } from '../context/CorpusContext';
-import { mixHex } from '../utils/colors';
+import { filterByFrequencyCutoff } from '../utils/placeFrequency';
 import { fetchFirstYearByTokenForCorpus } from '../utils/temporal';
 
 interface HeatmapLayerProps {
@@ -37,7 +37,7 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
     maxPlacesInView,
     downlightPercentile,
     downlightColorMode,
-    lowFreqGreenStrength,
+    lowFrequencyCutoffPercentile,
     heatmapStrength,
     temporalEnabled,
     temporalCutoffYear,
@@ -203,17 +203,21 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
       return true;
     });
 
-    if (temporalPlaces.length === 0) return [];
-    const frequencies = temporalPlaces.map((place) => place.frequency);
+    const cutoffPlaces = filterByFrequencyCutoff(
+      temporalPlaces,
+      lowFrequencyCutoffPercentile
+    );
+    if (cutoffPlaces.length === 0) return [];
+    const frequencies = cutoffPlaces.map((place) => place.frequency);
     const sortedFreqs = [...frequencies].sort((a, b) => a - b);
-    const thresholdIdx = Math.floor((downlightPercentile / 100) * Math.max(0, temporalPlaces.length - 1));
+    const thresholdIdx = Math.floor((downlightPercentile / 100) * Math.max(0, cutoffPlaces.length - 1));
     const thresholdFreq = downlightPercentile > 0 ? sortedFreqs[thresholdIdx] : 0;
     const maxFreq = Math.max(...frequencies);
     const minFreq = Math.min(...frequencies);
     const logMax = Math.log1p(maxFreq);
     const logMin = Math.log1p(minFreq);
 
-    return temporalPlaces
+    return cutoffPlaces
       .filter((place) => place.frequency > thresholdFreq)
       .map((place) => {
         const norm = logMax > logMin
@@ -239,6 +243,7 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
   }, [
     filteredSourcePlaces,
     downlightPercentile,
+    lowFrequencyCutoffPercentile,
     temporalEnabled,
     temporalCutoffYear,
     temporalMode,
@@ -252,7 +257,7 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
       ? comparePlaces.A.filter((place) => place.kind === selectedPlaceKindFilter)
       : comparePlaces.A;
     return toHeatPoints(source, { ignoreTemporal: true });
-  }, [compareReady, comparePlaces, downlightPercentile, temporalEnabled, temporalCutoffYear, temporalMode, firstYearByPlaceId, temporalMappingReady, selectedPlaceKindFilter]);
+  }, [compareReady, comparePlaces, downlightPercentile, lowFrequencyCutoffPercentile, temporalEnabled, temporalCutoffYear, temporalMode, firstYearByPlaceId, temporalMappingReady, selectedPlaceKindFilter]);
 
   const comparePointsB = useMemo<[number, number, number][]>(() => {
     if (!compareReady || !comparePlaces) return [];
@@ -260,7 +265,7 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
       ? comparePlaces.B.filter((place) => place.kind === selectedPlaceKindFilter)
       : comparePlaces.B;
     return toHeatPoints(source, { ignoreTemporal: true });
-  }, [compareReady, comparePlaces, downlightPercentile, temporalEnabled, temporalCutoffYear, temporalMode, firstYearByPlaceId, temporalMappingReady, selectedPlaceKindFilter]);
+  }, [compareReady, comparePlaces, downlightPercentile, lowFrequencyCutoffPercentile, temporalEnabled, temporalCutoffYear, temporalMode, firstYearByPlaceId, temporalMappingReady, selectedPlaceKindFilter]);
 
   useEffect(() => {
     if (compareReady) {
@@ -299,16 +304,13 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
 
     if (points.length === 0) return;
 
-    const greenRatio = lowFreqGreenStrength / 100;
     const baseLow = downlightColorMode === 'red' ? '#fee2e2' : '#dbeafe';
     const baseMid = downlightColorMode === 'red' ? '#f87171' : '#60a5fa';
     const baseHigh = downlightColorMode === 'red' ? '#991b1b' : '#1e3a8a';
-    const greenLow = '#bbf7d0';
-    const greenMid = '#22c55e';
 
     const gradient = {
-      0.2: mixHex(baseLow, greenLow, greenRatio),
-      0.55: mixHex(baseMid, greenMid, greenRatio * 0.8),
+      0.2: baseLow,
+      0.55: baseMid,
       1.0: baseHigh
     };
 
@@ -324,7 +326,7 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
     return () => {
       map.removeLayer(heatLayer);
     };
-  }, [map, points, downlightColorMode, lowFreqGreenStrength, compareReady, comparePointsA, comparePointsB, heatStrength]);
+  }, [map, points, downlightColorMode, compareReady, comparePointsA, comparePointsB, heatStrength]);
 
   return null;
 };

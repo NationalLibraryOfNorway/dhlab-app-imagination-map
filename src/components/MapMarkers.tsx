@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CircleMarker, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { useCorpus } from '../context/CorpusContext';
-import { mixHex } from '../utils/colors';
+import { filterByFrequencyCutoff } from '../utils/placeFrequency';
 import { fetchFirstYearByTokenForCorpus } from '../utils/temporal';
 import type { GeoSequenceRow } from '../utils/geoApi';
 
@@ -117,7 +117,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
         isPlacesLoading,
         downlightPercentile,
         downlightColorMode,
-        lowFreqGreenStrength,
+        lowFrequencyCutoffPercentile,
         markerSizeScale,
         temporalEnabled,
         temporalCutoffYear,
@@ -257,12 +257,13 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
 
     const visiblePlaceIds = useMemo(() => {
         if (isPlacesLoading || !temporalMappingReady || compareReady) return [];
-        const mapPlaces = [...(selectedPlaceKindFilter
+        const rankedPlaces = [...(selectedPlaceKindFilter
             ? places.filter((place) => place.kind === selectedPlaceKindFilter)
             : places
         )]
             .sort((a, b) => b.frequency - a.frequency)
             .slice(0, MAP_MARKER_LIMIT);
+        const mapPlaces = filterByFrequencyCutoff(rankedPlaces, lowFrequencyCutoffPercentile);
         const rawSequenceRows = bookSequence?.rows || [];
         const progressPct = Math.max(0, Math.min(100, Math.round(bookSequence?.progressPct || 0)));
         const cappedLength = rawSequenceRows.length === 0
@@ -307,6 +308,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
         temporalMappingReady,
         compareReady,
         selectedPlaceKindFilter,
+        lowFrequencyCutoffPercentile,
         bookSequence,
         geoFocus,
         map,
@@ -386,9 +388,11 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
             ? places.filter((place) => place.kind === selectedPlaceKindFilter)
             : places;
         if (filteredPlaces.length === 0) return [];
-        const mapPlaces = [...filteredPlaces]
+        const rankedPlaces = [...filteredPlaces]
             .sort((a, b) => b.frequency - a.frequency)
             .slice(0, MAP_MARKER_LIMIT);
+        const mapPlaces = filterByFrequencyCutoff(rankedPlaces, lowFrequencyCutoffPercentile);
+        if (mapPlaces.length === 0) return [];
         const renderedMapPlaceIds = new Set(
             mapPlaces
                 .map((place) => String(place.id || '').toLowerCase())
@@ -461,15 +465,9 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
 
             const baseStroke = downlightColorMode === 'red' ? '#dc2626' : '#1d4ed8';
             const baseFill = downlightColorMode === 'red' ? '#ef4444' : '#3b82f6';
-            const greenBase = '#22c55e';
-            const greenStrength = lowFreqGreenStrength / 100;
-            const lowFreqBias = logMax > logMin
-                ? 1 - ((Math.log1p(place.frequency) - logMin) / (logMax - logMin))
-                : 1;
-            const greenMix = greenStrength * Math.max(0, Math.min(1, lowFreqBias));
-            const activeStroke = mixHex(baseStroke, '#15803d', greenMix * 0.9);
-            const activeFill = mixHex(baseFill, greenBase, greenMix);
-            const dimFill = mixHex(downlightColorMode === 'red' ? '#fca5a5' : '#93c5fd', '#86efac', greenMix);
+            const activeStroke = baseStroke;
+            const activeFill = baseFill;
+            const dimFill = downlightColorMode === 'red' ? '#fca5a5' : '#93c5fd';
             const temporalFill = temporalEnabled && temporalMode === 'color' && isAfterOnly ? '#cbd5e1' : activeFill;
             const temporalStroke = temporalEnabled && temporalMode === 'color' && isAfterOnly ? '#94a3b8' : activeStroke;
             const temporalOpacity = temporalEnabled && temporalMode === 'color' && isAfterOnly ? 0.28 : (downlightColorMode === 'red' ? 0.62 : 0.54);
@@ -623,7 +621,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
         map,
         downlightPercentile,
         downlightColorMode,
-        lowFreqGreenStrength,
+        lowFrequencyCutoffPercentile,
         markerSizeScale,
         temporalEnabled,
         temporalCutoffYear,

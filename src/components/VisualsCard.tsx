@@ -31,8 +31,8 @@ export const VisualsCard: React.FC<VisualsCardProps> = ({ visibleMapPlaceIds }) 
     setDownlightColorMode,
     downlightPercentile,
     setDownlightPercentile,
-    lowFreqGreenStrength,
-    setLowFreqGreenStrength,
+    lowFrequencyCutoffPercentile,
+    setLowFrequencyCutoffPercentile,
     markerSizeScale,
     setMarkerSizeScale,
     heatmapStrength,
@@ -57,6 +57,22 @@ export const VisualsCard: React.FC<VisualsCardProps> = ({ visibleMapPlaceIds }) 
     window.setTimeout(resolve, ms);
   });
 
+  const waitForMapToSettle = async (mapElement: HTMLElement) => {
+    const deadline = performance.now() + 1500;
+    while (
+      performance.now() < deadline
+      && (
+        mapElement.classList.contains('leaflet-pan-anim')
+        || mapElement.classList.contains('leaflet-zoom-anim')
+      )
+    ) {
+      await wait(50);
+    }
+    await new Promise<void>((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+  };
+
   const downloadViewport = async (targetMode: 'map' | 'heatmap' | 'heatmap-all') => {
     if (isExporting) return;
     setIsExporting(true);
@@ -75,6 +91,7 @@ export const VisualsCard: React.FC<VisualsCardProps> = ({ visibleMapPlaceIds }) 
         return;
       }
 
+      await waitForMapToSettle(mapElement);
       const canvas = await html2canvas(mapElement, {
         useCORS: true,
         backgroundColor: '#ffffff',
@@ -251,17 +268,21 @@ export const VisualsCard: React.FC<VisualsCardProps> = ({ visibleMapPlaceIds }) 
         </div>
 
         <div className="visuals-section">
-          <label>Grønn-gradient for lavfrekvente ({lowFreqGreenStrength}%)</label>
+          <label>Kutt lavfrekvente steder ({lowFrequencyCutoffPercentile}%)</label>
           <div style={{ padding: '0 8px' }}>
             <Slider
               min={0}
-              max={100}
-              value={lowFreqGreenStrength}
-              onChange={(val) => setLowFreqGreenStrength(val as number)}
-              trackStyle={[{ backgroundColor: '#16a34a' }]}
-              handleStyle={[{ borderColor: '#22c55e', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }]}
+              max={99}
+              value={lowFrequencyCutoffPercentile}
+              onChange={(val) => setLowFrequencyCutoffPercentile(val as number)}
+              trackStyle={[{ backgroundColor: '#64748b' }]}
+              handleStyle={[{ borderColor: '#475569', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }]}
             />
           </div>
+          <small className="visuals-help">
+            Fjerner steder på eller under frekvensgrensen ved valgt persentil.
+            Gjelder kart og heatmap.
+          </small>
         </div>
 
         <div className="visuals-section">

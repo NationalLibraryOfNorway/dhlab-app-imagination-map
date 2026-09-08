@@ -160,7 +160,13 @@ function App() {
   return (
     <div className="app-shell">
       {/* Map layer */}
-      <MapContainer center={[60.472, 8.468]} zoom={6} className="map-container" zoomControl={false}>
+      <MapContainer
+        center={[60.472, 8.468]}
+        zoom={6}
+        className="map-container"
+        zoomControl={false}
+        preferCanvas
+      >
         {basemapConfig.provider === 'openfreemap' ? (
           <OpenFreeMapLayer styleUrl={basemapConfig.openFreeMapStyleUrl} />
         ) : (
