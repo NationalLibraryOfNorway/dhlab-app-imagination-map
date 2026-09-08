@@ -86,10 +86,10 @@ interface CorpusContextType {
   setMapLabelMode: (mode: MapLabelMode) => void;
   downlightColorMode: 'red' | 'blue';
   setDownlightColorMode: (mode: 'red' | 'blue') => void;
-  downlightPercentile: number;
-  setDownlightPercentile: (val: number) => void;
   lowFrequencyCutoffPercentile: number;
   setLowFrequencyCutoffPercentile: (val: number) => void;
+  lowFrequencyGreenPercentile: number;
+  setLowFrequencyGreenPercentile: (val: number) => void;
   heatmapStrength: number;
   setHeatmapStrength: (val: number) => void;
   markerSizeScale: number;
@@ -137,8 +137,8 @@ export const CorpusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [mapLabelLanguage, setMapLabelLanguage] = useState<MapLabelLanguage>('no');
   const [mapLabelMode, setMapLabelMode] = useState<MapLabelMode>('countries');
   const [downlightColorMode, setDownlightColorMode] = useState<'red' | 'blue'>('blue');
-  const [downlightPercentile, setDownlightPercentile] = useState<number>(0);
   const [lowFrequencyCutoffPercentile, setLowFrequencyCutoffPercentile] = useState<number>(0);
+  const [lowFrequencyGreenPercentile, setLowFrequencyGreenPercentile] = useState<number>(0);
   const [heatmapStrength, setHeatmapStrength] = useState<number>(100);
   const [markerSizeScale, setMarkerSizeScale] = useState<number>(100);
   const [maxPlacesInView, setMaxPlacesInView] = useState<number>(7000);
@@ -389,10 +389,10 @@ export const CorpusProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setMapLabelMode,
       downlightColorMode,
       setDownlightColorMode,
-      downlightPercentile,
-      setDownlightPercentile,
       lowFrequencyCutoffPercentile,
       setLowFrequencyCutoffPercentile,
+      lowFrequencyGreenPercentile,
+      setLowFrequencyGreenPercentile,
       heatmapStrength,
       setHeatmapStrength,
       markerSizeScale,

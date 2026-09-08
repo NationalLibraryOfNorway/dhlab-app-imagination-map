@@ -3,11 +3,21 @@ import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.heat';
 import { useCorpus } from '../context/CorpusContext';
-import { filterByFrequencyCutoff } from '../utils/placeFrequency';
+import {
+  filterByFrequencyCutoff,
+  getFrequencyCutoffThreshold
+} from '../utils/placeFrequency';
 import { fetchFirstYearByTokenForCorpus } from '../utils/temporal';
 
 interface HeatmapLayerProps {
   useFullDataset?: boolean;
+}
+
+type HeatPoint = [number, number, number];
+
+interface HeatPointGroups {
+  base: HeatPoint[];
+  green: HeatPoint[];
 }
 
 const normalizeTemporalPlaceId = (placeId: string): string => placeId.trim().toLowerCase();
@@ -35,9 +45,9 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
     activeBooksMetadata,
     API_URL,
     maxPlacesInView,
-    downlightPercentile,
     downlightColorMode,
     lowFrequencyCutoffPercentile,
+    lowFrequencyGreenPercentile,
     heatmapStrength,
     temporalEnabled,
     temporalCutoffYear,
@@ -187,9 +197,13 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
     };
   }, [temporalEnabled, activeBooksMetadata, API_URL, temporalTargetPlaceIds]);
 
-  const toHeatPoints = (inputPlaces: typeof places, opts?: { ignoreTemporal?: boolean }): [number, number, number][] => {
-    if (!temporalMappingReady) return [];
-    if (inputPlaces.length === 0) return [];
+  const toHeatPointGroups = (
+    inputPlaces: typeof places,
+    opts?: { ignoreTemporal?: boolean; ignoreGreen?: boolean }
+  ): HeatPointGroups => {
+    if (!temporalMappingReady || inputPlaces.length === 0) {
+      return { base: [], green: [] };
+    }
     const ignoreTemporal = opts?.ignoreTemporal === true;
 
     const temporalPlaces = inputPlaces.filter((place) => {
@@ -207,43 +221,45 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
       temporalPlaces,
       lowFrequencyCutoffPercentile
     );
-    if (cutoffPlaces.length === 0) return [];
+    if (cutoffPlaces.length === 0) return { base: [], green: [] };
     const frequencies = cutoffPlaces.map((place) => place.frequency);
-    const sortedFreqs = [...frequencies].sort((a, b) => a - b);
-    const thresholdIdx = Math.floor((downlightPercentile / 100) * Math.max(0, cutoffPlaces.length - 1));
-    const thresholdFreq = downlightPercentile > 0 ? sortedFreqs[thresholdIdx] : 0;
     const maxFreq = Math.max(...frequencies);
     const minFreq = Math.min(...frequencies);
     const logMax = Math.log1p(maxFreq);
     const logMin = Math.log1p(minFreq);
+    const greenThreshold = opts?.ignoreGreen
+      ? null
+      : getFrequencyCutoffThreshold(cutoffPlaces, lowFrequencyGreenPercentile);
+    const groups: HeatPointGroups = { base: [], green: [] };
 
-    return cutoffPlaces
-      .filter((place) => place.frequency > thresholdFreq)
-      .map((place) => {
-        const norm = logMax > logMin
-          ? (Math.log1p(place.frequency) - logMin) / (logMax - logMin)
-          : 0.35;
-        const firstYear = firstYearByPlaceId?.get(normalizeTemporalPlaceId(place.id));
-        if (ignoreTemporal) {
-          const intensity = boostIntensity(0.2 + norm * 0.8);
-          return [place.lat, place.lon, intensity];
-        }
-        const isAfterOnly = temporalEnabled
-          && temporalCutoffYear !== null
-          && typeof firstYear === 'number'
-          && firstYear >= temporalCutoffYear;
-        const temporalFactor = temporalEnabled && temporalMode === 'color' && isAfterOnly ? 0.18 : 1;
-        const intensity = boostIntensity((0.2 + norm * 0.8) * temporalFactor);
-        return [place.lat, place.lon, intensity];
-      });
+    cutoffPlaces.forEach((place) => {
+      const norm = logMax > logMin
+        ? (Math.log1p(place.frequency) - logMin) / (logMax - logMin)
+        : 0.35;
+      const firstYear = firstYearByPlaceId?.get(normalizeTemporalPlaceId(place.id));
+      const isAfterOnly = !ignoreTemporal
+        && temporalEnabled
+        && temporalCutoffYear !== null
+        && typeof firstYear === 'number'
+        && firstYear >= temporalCutoffYear;
+      const temporalFactor = temporalEnabled && temporalMode === 'color' && isAfterOnly ? 0.18 : 1;
+      const point: HeatPoint = [
+        place.lat,
+        place.lon,
+        boostIntensity((0.2 + norm * 0.8) * temporalFactor)
+      ];
+      const isGreen = greenThreshold !== null && place.frequency <= greenThreshold;
+      groups[isGreen ? 'green' : 'base'].push(point);
+    });
+    return groups;
   };
 
-  const points = useMemo<[number, number, number][]>(() => {
-    return toHeatPoints(filteredSourcePlaces);
+  const points = useMemo<HeatPointGroups>(() => {
+    return toHeatPointGroups(filteredSourcePlaces);
   }, [
     filteredSourcePlaces,
-    downlightPercentile,
     lowFrequencyCutoffPercentile,
+    lowFrequencyGreenPercentile,
     temporalEnabled,
     temporalCutoffYear,
     temporalMode,
@@ -251,21 +267,21 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
     temporalMappingReady
   ]);
 
-  const comparePointsA = useMemo<[number, number, number][]>(() => {
+  const comparePointsA = useMemo<HeatPoint[]>(() => {
     if (!compareReady || !comparePlaces) return [];
     const source = selectedPlaceKindFilter
       ? comparePlaces.A.filter((place) => place.kind === selectedPlaceKindFilter)
       : comparePlaces.A;
-    return toHeatPoints(source, { ignoreTemporal: true });
-  }, [compareReady, comparePlaces, downlightPercentile, lowFrequencyCutoffPercentile, temporalEnabled, temporalCutoffYear, temporalMode, firstYearByPlaceId, temporalMappingReady, selectedPlaceKindFilter]);
+    return toHeatPointGroups(source, { ignoreTemporal: true, ignoreGreen: true }).base;
+  }, [compareReady, comparePlaces, lowFrequencyCutoffPercentile, lowFrequencyGreenPercentile, temporalEnabled, temporalCutoffYear, temporalMode, firstYearByPlaceId, temporalMappingReady, selectedPlaceKindFilter]);
 
-  const comparePointsB = useMemo<[number, number, number][]>(() => {
+  const comparePointsB = useMemo<HeatPoint[]>(() => {
     if (!compareReady || !comparePlaces) return [];
     const source = selectedPlaceKindFilter
       ? comparePlaces.B.filter((place) => place.kind === selectedPlaceKindFilter)
       : comparePlaces.B;
-    return toHeatPoints(source, { ignoreTemporal: true });
-  }, [compareReady, comparePlaces, downlightPercentile, lowFrequencyCutoffPercentile, temporalEnabled, temporalCutoffYear, temporalMode, firstYearByPlaceId, temporalMappingReady, selectedPlaceKindFilter]);
+    return toHeatPointGroups(source, { ignoreTemporal: true, ignoreGreen: true }).base;
+  }, [compareReady, comparePlaces, lowFrequencyCutoffPercentile, lowFrequencyGreenPercentile, temporalEnabled, temporalCutoffYear, temporalMode, firstYearByPlaceId, temporalMappingReady, selectedPlaceKindFilter]);
 
   useEffect(() => {
     if (compareReady) {
@@ -302,7 +318,7 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
       };
     }
 
-    if (points.length === 0) return;
+    if (points.base.length === 0 && points.green.length === 0) return;
 
     const baseLow = downlightColorMode === 'red' ? '#fee2e2' : '#dbeafe';
     const baseMid = downlightColorMode === 'red' ? '#f87171' : '#60a5fa';
@@ -314,17 +330,30 @@ export const HeatmapLayer: React.FC<HeatmapLayerProps> = ({ useFullDataset = fal
       1.0: baseHigh
     };
 
-    const heatLayer = (L as any).heatLayer(points, {
+    const layerOptions = {
       radius: Math.round(16 + 12 * heatStrength),
       blur: Math.round(14 + 8 * heatStrength),
       maxZoom: 9,
-      minOpacity: Math.min(0.5, 0.16 + 0.1 * heatStrength),
-      gradient
-    });
-
-    heatLayer.addTo(map);
+      minOpacity: Math.min(0.5, 0.16 + 0.1 * heatStrength)
+    };
+    const heatLayers = [
+      points.base.length > 0
+        ? (L as any).heatLayer(points.base, { ...layerOptions, gradient })
+        : null,
+      points.green.length > 0
+        ? (L as any).heatLayer(points.green, {
+            ...layerOptions,
+            gradient: {
+              0.2: '#dcfce7',
+              0.55: '#22c55e',
+              1.0: '#166534'
+            }
+          })
+        : null
+    ].filter(Boolean);
+    heatLayers.forEach((layer) => layer.addTo(map));
     return () => {
-      map.removeLayer(heatLayer);
+      heatLayers.forEach((layer) => map.removeLayer(layer));
     };
   }, [map, points, downlightColorMode, compareReady, comparePointsA, comparePointsB, heatStrength]);
 

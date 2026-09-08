@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CircleMarker, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import { useCorpus } from '../context/CorpusContext';
-import { filterByFrequencyCutoff } from '../utils/placeFrequency';
+import { mixHex } from '../utils/colors';
+import {
+    filterByFrequencyCutoff,
+    getFrequencyCutoffThreshold
+} from '../utils/placeFrequency';
 import { fetchFirstYearByTokenForCorpus } from '../utils/temporal';
 import type { GeoSequenceRow } from '../utils/geoApi';
 
@@ -115,9 +119,9 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
         API_URL,
         maxPlacesInView,
         isPlacesLoading,
-        downlightPercentile,
         downlightColorMode,
         lowFrequencyCutoffPercentile,
+        lowFrequencyGreenPercentile,
         markerSizeScale,
         temporalEnabled,
         temporalCutoffYear,
@@ -434,14 +438,13 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
         const maxFreq = Math.max(...frequencies);
         const logMin = Math.log1p(minFreq);
         const logMax = Math.log1p(maxFreq);
-        
-        // Calculate the absolute frequency threshold based on the percentile
-        let thresholdFreq = 0;
-        if (downlightPercentile > 0) {
-           const sortedFreqs = [...frequencies].sort((a,b)=>a-b);
-           const pIdx = Math.floor((downlightPercentile / 100) * (mapPlaces.length - 1));
-           thresholdFreq = sortedFreqs[pIdx];
-        }
+        const greenThreshold = getFrequencyCutoffThreshold(
+            mapPlaces,
+            lowFrequencyGreenPercentile
+        );
+        const logGreenThreshold = greenThreshold === null
+            ? logMin
+            : Math.log1p(greenThreshold);
 
         const markers = mapPlaces.map(place => {
             // Normalisert radius
@@ -452,7 +455,6 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
             }
             radius = Math.max(2, Math.min(60, radius * (markerSizeScale / 100)));
             
-            const isDownlighted = place.frequency <= thresholdFreq;
             const firstYear = firstYearByPlaceId?.get(normalizeTemporalPlaceId(place.id));
             const isAfterOnly = temporalEnabled
                 && temporalCutoffYear !== null
@@ -465,9 +467,13 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
 
             const baseStroke = downlightColorMode === 'red' ? '#dc2626' : '#1d4ed8';
             const baseFill = downlightColorMode === 'red' ? '#ef4444' : '#3b82f6';
-            const activeStroke = baseStroke;
-            const activeFill = baseFill;
-            const dimFill = downlightColorMode === 'red' ? '#fca5a5' : '#93c5fd';
+            const isGreen = greenThreshold !== null && place.frequency <= greenThreshold;
+            const greenPosition = isGreen && logGreenThreshold > logMin
+                ? 1 - ((Math.log1p(place.frequency) - logMin) / (logGreenThreshold - logMin))
+                : (isGreen ? 1 : 0);
+            const greenMix = isGreen ? 0.45 + (Math.max(0, greenPosition) * 0.55) : 0;
+            const activeStroke = mixHex(baseStroke, '#15803d', greenMix * 0.9);
+            const activeFill = mixHex(baseFill, '#22c55e', greenMix);
             const temporalFill = temporalEnabled && temporalMode === 'color' && isAfterOnly ? '#cbd5e1' : activeFill;
             const temporalStroke = temporalEnabled && temporalMode === 'color' && isAfterOnly ? '#94a3b8' : activeStroke;
             const temporalOpacity = temporalEnabled && temporalMode === 'color' && isAfterOnly ? 0.28 : (downlightColorMode === 'red' ? 0.62 : 0.54);
@@ -513,8 +519,7 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
                     ? 2.2
                     : inGeoFocus
                         ? (useGeoRing ? 2.8 : 2.1)
-                        : (isDownlighted ? 0 : 1.5);
-            const fallbackFill = shouldDimByFocus ? '#cbd5e1' : dimFill;
+                        : 1.5;
 
             return (
                 <CircleMarker
@@ -522,9 +527,9 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
                     center={[place.lat, place.lon]}
                     radius={displayRadius}
                     pathOptions={{ 
-                        color: isDownlighted && !isAnyFocused ? 'transparent' : displayStroke,
-                        fillColor: isDownlighted && !isAnyFocused ? fallbackFill : displayFill,
-                        fillOpacity: isDownlighted && !isAnyFocused ? Math.min(displayOpacity, 0.12) : (useGeoRing ? 0.06 : displayOpacity),
+                        color: displayStroke,
+                        fillColor: shouldDimByFocus ? '#cbd5e1' : displayFill,
+                        fillOpacity: useGeoRing ? 0.06 : displayOpacity,
                         weight: displayWeight
                     }}
                     eventHandlers={{
@@ -619,9 +624,9 @@ export const MapMarkers: React.FC<MapMarkersProps> = ({
         places,
         onSelectPlace,
         map,
-        downlightPercentile,
         downlightColorMode,
         lowFrequencyCutoffPercentile,
+        lowFrequencyGreenPercentile,
         markerSizeScale,
         temporalEnabled,
         temporalCutoffYear,

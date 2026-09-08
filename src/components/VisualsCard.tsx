@@ -29,10 +29,10 @@ export const VisualsCard: React.FC<VisualsCardProps> = ({ visibleMapPlaceIds }) 
     setMapLabelMode,
     downlightColorMode,
     setDownlightColorMode,
-    downlightPercentile,
-    setDownlightPercentile,
     lowFrequencyCutoffPercentile,
     setLowFrequencyCutoffPercentile,
+    lowFrequencyGreenPercentile,
+    setLowFrequencyGreenPercentile,
     markerSizeScale,
     setMarkerSizeScale,
     heatmapStrength,
@@ -142,12 +142,6 @@ export const VisualsCard: React.FC<VisualsCardProps> = ({ visibleMapPlaceIds }) 
     }
   };
 
-  const sliderTrackColor = downlightColorMode === 'red'
-      ? '#dc2626'
-      : '#2563eb';
-  const sliderHandleColor = downlightColorMode === 'red'
-      ? '#ef4444'
-      : '#3b82f6';
   const { layout, onDrag, onDragStop, onResizeStop } = useWindowLayout({
     key: 'visuals',
     defaultLayout: { x: 20, y: 20, width: 320, height: 640 },
@@ -250,19 +244,19 @@ export const VisualsCard: React.FC<VisualsCardProps> = ({ visibleMapPlaceIds }) 
         </div>
 
         <div className="visuals-section">
-          <label>Fargeprofil for demping</label>
+          <label>Grunnfarge</label>
           <div className="visuals-toggle-row">
             <button
               className={`visuals-toggle ${downlightColorMode === 'red' ? 'active' : ''}`}
               onClick={() => setDownlightColorMode('red')}
             >
-              Rød fokus
+              Rød
             </button>
             <button
               className={`visuals-toggle ${downlightColorMode === 'blue' ? 'active' : ''}`}
               onClick={() => setDownlightColorMode('blue')}
             >
-              Blå dis
+              Blå
             </button>
           </div>
         </div>
@@ -286,6 +280,23 @@ export const VisualsCard: React.FC<VisualsCardProps> = ({ visibleMapPlaceIds }) 
         </div>
 
         <div className="visuals-section">
+          <label>Grønning etter kutt ({lowFrequencyGreenPercentile}%)</label>
+          <div style={{ padding: '0 8px' }}>
+            <Slider
+              min={0}
+              max={99}
+              value={lowFrequencyGreenPercentile}
+              onChange={(val) => setLowFrequencyGreenPercentile(val as number)}
+              trackStyle={[{ backgroundColor: '#16a34a' }]}
+              handleStyle={[{ borderColor: '#22c55e', backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }]}
+            />
+          </div>
+          <small className="visuals-help">
+            Grønner de nederste prosentene etter kuttet. De svakeste stedene blir grønnest.
+          </small>
+        </div>
+
+        <div className="visuals-section">
           <label>Størrelse på stedsmarkører ({markerSizeScale}%)</label>
           <div style={{ padding: '0 8px' }}>
             <Slider
@@ -302,20 +313,6 @@ export const VisualsCard: React.FC<VisualsCardProps> = ({ visibleMapPlaceIds }) 
           <small className="visuals-help">
             Skalerer radius på markører i kartvisning (deaktivert under A/B-sammenligning).
           </small>
-        </div>
-
-        <div className="visuals-section">
-          <label>Demp lavfrekvente steder ({downlightPercentile}%)</label>
-          <div style={{ padding: '0 8px' }}>
-            <Slider
-              min={0}
-              max={99}
-              value={downlightPercentile}
-              onChange={(val) => setDownlightPercentile(val as number)}
-              trackStyle={[{ backgroundColor: sliderTrackColor }]}
-              handleStyle={[{ borderColor: sliderHandleColor, backgroundColor: '#fff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }]}
-            />
-          </div>
         </div>
 
         <div className="visuals-section">
